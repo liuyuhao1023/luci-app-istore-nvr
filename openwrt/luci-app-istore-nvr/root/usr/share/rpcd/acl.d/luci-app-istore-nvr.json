@@ -4,7 +4,7 @@
     "read": {
       "uci": [ "istore-nvr" ],
       "file": {
-        "/etc/config/istore-nvr": [ "read" ]
+        "/bin/pidof": [ "exec" ]
       }
     },
     "write": {

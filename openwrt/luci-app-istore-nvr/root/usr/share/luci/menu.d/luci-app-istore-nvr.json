@@ -1,0 +1,20 @@
+{
+	"admin/services/istore-nvr": {
+		"title": "iStore NVR 监控",
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-istore-nvr" ],
+			"uci": { "istore-nvr": true }
+		}
+	},
+	"admin/services/istore-nvr/config": {
+		"title": "系统配置与入口",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "istore-nvr/config"
+		}
+	}
+}
