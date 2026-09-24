@@ -8,6 +8,7 @@ frontend/dist/
 *.zip
 !bin/*.ipk
 !bin/*.apk
+!bin/*.run
 !bin/*.tar.gz
 
 # 数据库与运行时临时文件
