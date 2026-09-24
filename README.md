@@ -1,14 +1,14 @@
-# iStore NVR - 网络视频监控管理系统
+# OpenWrt NVR - 网络视频监控管理系统 (NVR 摄像头管理)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-iStoreOS%20%2F%20OpenWrt-blue.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/Platform-OpenWrt%20%7C%20iStoreOS%20%7C%20Linux-blue.svg" alt="Platform">
   <img src="https://img.shields.io/badge/Architecture-x86__64%20%7C%20aarch64-green.svg" alt="Architecture">
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
   <img src="https://img.shields.io/badge/Go-1.22+-00ADD8.svg" alt="Go">
   <img src="https://img.shields.io/badge/Vue-3.4+-4FC08D.svg" alt="Vue">
 </p>
 
-专为运行在 **iStoreOS / OpenWrt 软路由** 上打造的高性能、免插件、低功耗网络视频监控录像系统（NVR）。
+专为运行在 **OpenWrt / Linux 软路由（广泛支持原生 OpenWrt、iStoreOS、ImmortalWrt 及通用 Linux 发行版）** 上打造的高性能、免插件、低功耗网络视频监控录像系统（NVR）。
 
 让软路由低功耗替代传统 NVR 硬件录像机，实现摄像头自动发现、跨网段接入、WebRTC 极低延迟多画面预览、原始码流直通切片录像与局域网 NAS (SMB/CIFS) 网络存储管理。
 
@@ -35,7 +35,7 @@
 +------------------------------------------+----------------------------------------+
                                            | HTTP REST API / WebRTC WHEP
 +------------------------------------------v----------------------------------------+
-|                      iStore NVR 核心服务 (Linux x86_64 / arm64)                   |
+|                      OpenWrt NVR 核心服务 (Linux x86_64 / arm64)                   |
 |  +-----------------------------------------------------------------------------+  |
 |  | 设备适配层: 海康威视专属适配 (ISAPI / Digest鉴权 / RTSP TCP 码流自适应)     |  |
 |  +-----------------------------------------------------------------------------+  |

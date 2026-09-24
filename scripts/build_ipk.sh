@@ -36,7 +36,7 @@ Depends: libc, luci-base, mount-utils, cifs-utils
 Section: luci
 Architecture: ${PKG_ARCH}
 Maintainer: liuyuhao1023
-Description: LuCI support for iStore NVR Surveillance System
+Description: LuCI support for OpenWrt NVR Camera Management System
 EOF
 
 # 3. 生成安装后触发脚本 (postinst - 遵守避坑指南: 显式权限修复与优雅服务重载)

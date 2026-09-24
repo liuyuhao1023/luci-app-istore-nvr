@@ -1,6 +1,6 @@
 {
   "luci-app-istore-nvr": {
-    "description": "Grant access to iStore NVR configuration and service",
+    "description": "Grant access to NVR Camera Manager configuration and service",
     "read": {
       "uci": [ "istore-nvr" ],
       "file": {

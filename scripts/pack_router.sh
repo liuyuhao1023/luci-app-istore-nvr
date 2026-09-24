@@ -28,7 +28,7 @@ Depends: libc, luci-base, mount-utils, cifs-utils
 Section: luci
 Architecture: all
 Maintainer: liuyuhao1023
-Description: LuCI support for iStore NVR Surveillance System
+Description: LuCI support for OpenWrt NVR Camera Management System
 CEOF
 
 cat << 'PEOF' > "$BUILD_DIR/control/postinst"

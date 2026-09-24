@@ -25,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	log.Println("==================================================")
-	log.Println("  iStoreOS 网络视频监控管理系统 (iStore NVR) v1.0 ")
+	log.Println("  OpenWrt 网络视频监控管理系统 (NVR 摄像头管理) v1.0 ")
 	log.Println("==================================================")
 
 	// 1. 确定安全的数据库落盘路径 (绝对禁止在软路由 /overlay 上持续写库)

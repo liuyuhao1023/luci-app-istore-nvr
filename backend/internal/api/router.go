@@ -90,7 +90,7 @@ func SetupRouter(
 	} else {
 		r.GET("/", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
-				"service": "iStore NVR Backend API",
+				"service": "OpenWrt NVR Backend API",
 				"status":  "running",
 				"version": "1.0.0",
 			})
