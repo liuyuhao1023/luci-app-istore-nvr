@@ -61,7 +61,7 @@
       <div class="grid-container" :style="gridStyle">
         <div
           v-for="(slot, idx) in slots"
-          :key="idx"
+          :key="slot.camera ? `slot-${idx}-${slot.camera.id}-${slot.streamType}` : `slot-empty-${idx}`"
           class="grid-cell"
           :class="{ selected: activeSlotIndex === idx }"
           @click="activeSlotIndex = idx"
@@ -101,6 +101,7 @@
             <div v-if="slot.camera" class="video-wrapper">
               <iframe
                 v-if="slot.playUrl"
+                :key="slot.playUrl"
                 :src="slot.playUrl"
                 class="video-iframe"
                 allow="autoplay; fullscreen"
@@ -133,8 +134,19 @@ interface Slot {
   playUrl?: string
 }
 
+interface SavedSlotConfig {
+  camId: number | null
+  streamType: 'main' | 'sub'
+}
+
 const cameras = ref<any[]>([])
-const layoutCount = ref<number>(4)
+
+// 1. 从 localStorage 读取上次退出的宫格模式，默认 4 宫格
+const savedLayout = Number(localStorage.getItem('nvr_live_layout'))
+const layoutCount = ref<number>(
+  savedLayout && [1, 4, 9, 16, 25, 36, 64].includes(savedLayout) ? savedLayout : 4
+)
+
 const activeSlotIndex = ref<number>(0)
 const selectedCamId = ref<number | null>(null)
 const isFullScreen = ref(false)
@@ -142,12 +154,26 @@ const fullScreenTarget = ref<HTMLElement | null>(null)
 
 const slots = ref<Slot[]>([])
 
+// 持久化当前槽位配置
+const saveSlotState = () => {
+  try {
+    const state: SavedSlotConfig[] = slots.value.map((s) => ({
+      camId: s.camera ? s.camera.id : null,
+      streamType: s.streamType,
+    }))
+    localStorage.setItem('nvr_live_slots', JSON.stringify(state))
+  } catch (e) {
+    console.error('保存槽位状态失败:', e)
+  }
+}
+
+// 异步载入视频流
 const loadSlotStream = async (slot: Slot) => {
   if (!slot.camera) return
   try {
+    slot.playUrl = '' // 重置为空以触发 loading 态与 iframe 销毁
     const res: any = await api.requestStream(slot.camera.id, slot.streamType)
     if (res.code === 0 && res.data) {
-      // 使用 MediaMTX 自带的高性能 WebRTC/HLS 播放视窗
       slot.playUrl = res.data.iframe_url
     }
   } catch (e: any) {
@@ -155,25 +181,44 @@ const loadSlotStream = async (slot: Slot) => {
   }
 }
 
-const initSlots = (count: number) => {
-  const newSlots: Slot[] = []
-  for (let i = 0; i < count; i++) {
-    const streamType = count === 1 ? 'main' : 'sub'
-    const cam = cameras.value[i] || null
-    const s: Slot = {
-      camera: cam,
-      streamType,
-    }
-    if (cam) {
-      loadSlotStream(s)
-    }
-    newSlots.push(s)
-  }
-  slots.value = newSlots
-}
-
+// 切换宫格布局 (保留已有槽位的视频流，绝不重复覆盖成同一摄像头)
 const handleLayoutChange = (count: number) => {
-  initSlots(count)
+  layoutCount.value = count
+  localStorage.setItem('nvr_live_layout', String(count))
+
+  const currentSlots = [...slots.value]
+  const newSlots: Slot[] = []
+
+  // 记录当前已经被分配在画面中的摄像头 ID，避免重复显示同一路画面
+  const usedCamIds = new Set<number>()
+
+  for (let i = 0; i < count; i++) {
+    if (i < currentSlots.length && currentSlots[i]) {
+      const existing = currentSlots[i]
+      if (existing.camera) {
+        usedCamIds.add(existing.camera.id)
+      }
+      newSlots.push(existing)
+    } else {
+      // 新扩充的窗口：优先在可用摄像头列表中挑选尚未分配的摄像头
+      const unusedCam = cameras.value.find((c) => !usedCamIds.has(c.id)) || null
+      if (unusedCam) {
+        usedCamIds.add(unusedCam.id)
+      }
+      const s: Slot = {
+        camera: unusedCam,
+        streamType: count === 1 ? 'main' : 'sub',
+      }
+      if (unusedCam) {
+        loadSlotStream(s)
+      }
+      newSlots.push(s)
+    }
+  }
+
+  // 裁剪多余的窗口
+  slots.value = newSlots
+  saveSlotState()
 }
 
 const gridStyle = computed(() => {
@@ -187,41 +232,61 @@ const gridStyle = computed(() => {
   }
 })
 
+// 点击左侧摄像头快速分配到当前选中窗口
 const selectCamera = (cam: any) => {
   selectedCamId.value = cam.id
   if (activeSlotIndex.value >= 0 && activeSlotIndex.value < slots.value.length) {
     const s = slots.value[activeSlotIndex.value]
     s.camera = cam
+    s.playUrl = ''
     loadSlotStream(s)
-    if (activeSlotIndex.value < slots.value.length - 1) {
+    saveSlotState()
+
+    // 智能向后寻址：跳至下一个空闲窗口，防止连点导致后续窗口全部被替换为同一路摄像头
+    const nextEmptyIdx = slots.value.findIndex(
+      (slot, i) => i > activeSlotIndex.value && !slot.camera
+    )
+    if (nextEmptyIdx !== -1) {
+      activeSlotIndex.value = nextEmptyIdx
+    } else if (activeSlotIndex.value < slots.value.length - 1) {
       activeSlotIndex.value++
     }
   }
 }
 
+// 点击空窗口载入左侧选中的摄像头
 const assignSelectedToSlot = (idx: number) => {
+  activeSlotIndex.value = idx
   if (selectedCamId.value) {
     const cam = cameras.value.find((c) => c.id === selectedCamId.value)
     if (cam) {
       slots.value[idx].camera = cam
+      slots.value[idx].playUrl = ''
       loadSlotStream(slots.value[idx])
+      saveSlotState()
       return
     }
   }
-  ElMessage.info('请先在左侧列表中点击选择一个摄像头')
+  ElMessage.info('请在左侧列表中点击选择要载入的摄像头')
 }
 
+// 移除单个槽位画面
 const removeSlotCamera = (idx: number) => {
   slots.value[idx].camera = null
   slots.value[idx].playUrl = undefined
+  saveSlotState()
 }
 
+// 主/子码流切换
 const toggleStreamType = (slot: Slot) => {
   slot.streamType = slot.streamType === 'main' ? 'sub' : 'main'
+  slot.playUrl = ''
   loadSlotStream(slot)
+  saveSlotState()
   ElMessage.success(`已切换至: ${slot.streamType === 'main' ? '主码流(高清)' : '子码流(流畅)'}`)
 }
 
+// 刷新全部已加载画面的视频流
 const refreshAllStreams = () => {
   slots.value.forEach((s) => {
     if (s.camera) {
@@ -245,12 +310,52 @@ onMounted(async () => {
   try {
     const res: any = await api.getCameras()
     if (res.code === 0) {
-      cameras.value = res.data
+      cameras.value = res.data || []
     }
   } catch (e) {
     console.error(e)
   }
-  initSlots(layoutCount.value)
+
+  // 恢复保存的槽位配置
+  let savedSlots: SavedSlotConfig[] = []
+  try {
+    const raw = localStorage.getItem('nvr_live_slots')
+    if (raw) savedSlots = JSON.parse(raw)
+  } catch (e) {
+    console.error('解析缓存槽位失败:', e)
+  }
+
+  const count = layoutCount.value
+  const newSlots: Slot[] = []
+  const usedCamIds = new Set<number>()
+
+  for (let i = 0; i < count; i++) {
+    let cam = null
+    let streamType: 'main' | 'sub' = count === 1 ? 'main' : 'sub'
+
+    if (savedSlots[i] && savedSlots[i].camId) {
+      cam = cameras.value.find((c) => c.id === savedSlots[i].camId) || null
+      streamType = savedSlots[i].streamType || streamType
+    } else if (savedSlots.length === 0) {
+      // 首次使用没有历史缓存时，按顺序分配不重复的摄像头
+      const unused = cameras.value.find((c) => !usedCamIds.has(c.id))
+      if (unused) {
+        cam = unused
+      }
+    }
+
+    if (cam) {
+      usedCamIds.add(cam.id)
+    }
+
+    const s: Slot = { camera: cam, streamType }
+    if (cam) {
+      loadSlotStream(s)
+    }
+    newSlots.push(s)
+  }
+
+  slots.value = newSlots
 })
 </script>
 

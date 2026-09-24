@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -70,8 +71,18 @@ func (e *StreamEngine) ensureMediaMTX() {
 		return
 	}
 
+	// 动态检测 OpenWrt 局域网 IP
+	lanIP := "192.168.1.15"
+	if out, err := exec.Command("uci", "-q", "get", "network.lan.ipaddr").Output(); err == nil {
+		t := strings.TrimSpace(string(out))
+		if t != "" {
+			lanIP = t
+		}
+	}
+
 	// 生成基础配置 (开启 API, WebRTC, HLS, RTSP)
-	confContent := `logLevel: info
+	// 重点: 禁用从 docker0 等虚拟接口提取 ICE candidate，指定 LAN IP，确保局域网直接建立 WebRTC 会话
+	confContent := fmt.Sprintf(`logLevel: info
 logDestinations: [stdout]
 
 api: yes
@@ -84,6 +95,9 @@ protocols: [tcp]
 webrtc: yes
 webrtcAddress: :8889
 webrtcEncryption: no
+webrtcIPsFromInterfaces: no
+webrtcAdditionalHosts:
+  - %s
 
 hls: yes
 hlsAddress: :8888
@@ -94,7 +108,7 @@ srt: no
 paths:
   all:
     name: ~^.*$
-`
+`, lanIP)
 	_ = os.WriteFile(confPath, []byte(confContent), 0644)
 
 	// 先清理历史可能残留的旧实例
@@ -173,7 +187,7 @@ func (e *StreamEngine) RequestStream(cameraID uint, streamType string, clientHos
 		"path_name":   pathName,
 		"whep_url":    fmt.Sprintf("http://%s:8889/%s/whep", clientHost, pathName),
 		"hls_url":     fmt.Sprintf("http://%s:8888/%s/index.m3u8", clientHost, pathName),
-		"iframe_url":  fmt.Sprintf("http://%s:8889/%s", clientHost, pathName),
+		"iframe_url":  fmt.Sprintf("http://%s:8889/%s/?autoplay=true&muted=true&controls=false", clientHost, pathName),
 	}, nil
 }
 
