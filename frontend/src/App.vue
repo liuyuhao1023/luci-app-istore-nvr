@@ -5,7 +5,7 @@
       <div class="header-left">
         <el-icon :size="24" color="#3b82f6"><VideoCameraFilled /></el-icon>
         <span class="logo-title">NVR 摄像头管理系统</span>
-        <el-tag type="info" size="small" class="node-badge">软路由节点: 192.168.1.15</el-tag>
+        <el-tag type="info" size="small" class="node-badge">软路由节点: {{ hostNode }}</el-tag>
       </div>
 
       <div class="header-right">
@@ -84,6 +84,7 @@ import api from './api'
 
 const globalRecord = ref(true)
 const recordSwitchLoading = ref(false)
+const hostNode = ref(window.location.hostname || '软路由')
 
 const loadGlobalSwitch = async () => {
   try {

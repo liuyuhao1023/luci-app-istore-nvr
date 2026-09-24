@@ -45,14 +45,9 @@ chmod 755 /etc/init.d/istore-nvr 2>/dev/null || true
 chmod 755 /mnt/sata1-4/istore-nvr/istore-nvr 2>/dev/null || true
 chmod 755 /mnt/sata1-4/istore-nvr/mediamtx 2>/dev/null || true
 
-# 若备用目录存在核心程序，自动恢复到安装目录
-if [ ! -f /mnt/sata1-4/istore-nvr/istore-nvr ] && [ -f /mnt/sata1-4/istore-nvr.backup/istore-nvr ]; then
-    echo ">>> [恢复] 自动从备份目录恢复核心程序与数据..."
-    mkdir -p /mnt/sata1-4/istore-nvr
-    cp -rn /mnt/sata1-4/istore-nvr.backup/* /mnt/sata1-4/istore-nvr/ 2>/dev/null || true
-    chmod 755 /mnt/sata1-4/istore-nvr/istore-nvr 2>/dev/null || true
-    chmod 755 /mnt/sata1-4/istore-nvr/mediamtx 2>/dev/null || true
-fi
+# 确保可执行文件权限
+chmod 755 /mnt/sata1-4/istore-nvr/istore-nvr 2>/dev/null || true
+chmod 755 /mnt/sata1-4/istore-nvr/mediamtx 2>/dev/null || true
 
 echo ">>> [3/4] 清理 LuCI 缓存并重载 rpcd 权限..."
 rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache* /usr/lib/lua/luci/controller/*nvr* /usr/lib/lua/luci/model/cbi/*nvr*
