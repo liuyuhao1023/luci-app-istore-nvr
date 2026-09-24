@@ -1,0 +1,259 @@
+﻿=== 1. OS & KERNEL ===
+DISTRIB_ID='iStoreOS'
+DISTRIB_RELEASE='25.12.5'
+DISTRIB_REVISION='2026091113'
+DISTRIB_TARGET='x86/64'
+DISTRIB_ARCH='x86_64'
+DISTRIB_DESCRIPTION='iStoreOS 25.12.5 2026091113'
+DISTRIB_TAINTS='busybox'
+NAME="iStoreOS"
+VERSION="25.12.5"
+ID="istoreos"
+ID_LIKE="lede openwrt"
+PRETTY_NAME="iStoreOS 25.12.5"
+VERSION_ID="25.12.5"
+HOME_URL="https://github.com/istoreos"
+BUG_URL="https://github.com/istoreos/istoreos/issues"
+SUPPORT_URL="https://forum.openwrt.org/"
+FIRMWARE_URL="https://downloads.openwrt.org/"
+BUILD_ID="2026091113"
+OPENWRT_BOARD="x86/64"
+OPENWRT_ARCH="x86_64"
+OPENWRT_TAINTS="busybox"
+OPENWRT_DEVICE_MANUFACTURER="OpenWrt"
+OPENWRT_DEVICE_MANUFACTURER_URL="https://openwrt.org/"
+OPENWRT_DEVICE_PRODUCT="Generic"
+OPENWRT_DEVICE_REVISION="v0"
+OPENWRT_RELEASE="iStoreOS 25.12.5 2026091113"
+OPENWRT_BUILD_DATE="1789014656"
+Linux iStoreOS 6.12.94 #0 SMP Thu Sep 10 04:30:56 2026 x86_64 GNU/Linux
+                                                        
+   [0;1;34;94m▀[0m     [0;34m▄▄▄▄[0m    [0;34m▄[0m                          [0;1;30;90m▄▄▄▄[0m   [0;1;30;90m▄▄▄▄[0m 
+ [0;34m▄▄▄[0m    [0;34m█▀[0m   [0;34m▀[0m [0;34m▄[0;37m▄█▄▄[0m   [0;37m▄▄▄[0m    [0;37m▄[0m [0;1;30;90m▄▄[0m   [0;1;30;90m▄▄▄[0m   [0;1;30;90m▄▀[0m  [0;1;30;90m▀[0;1;34;94m▄[0m [0;1;34;94m█▀[0m   [0;1;34;94m▀[0m
+   [0;34m█[0m    [0;37m▀█▄▄▄[0m    [0;37m█[0m    [0;37m█▀[0m [0;1;30;90m▀█[0m   [0;1;30;90m█▀[0m  [0;1;30;90m▀[0m [0;1;30;90m█▀[0m  [0;1;34;94m█[0m  [0;1;34;94m█[0m    [0;1;34;94m█[0m [0;1;34;94m▀█▄▄▄[0m 
+   [0;37m█[0m        [0;37m▀█[0m   [0;1;30;90m█[0m    [0;1;30;90m█[0m   [0;1;30;90m█[0m   [0;1;30;90m█[0m     [0;1;34;94m█▀▀▀▀[0m  [0;1;34;94m█[0m    [0;34m█[0m     [0;34m▀█[0m
+ [0;37m▄▄█▄▄[0m  [0;1;30;90m▀▄▄▄█▀[0m   [0;1;30;90m▀▄▄[0m  [0;1;30;90m▀█[0;1;34;94m▄█▀[0m   [0;1;34;94m█[0m     [0;1;34;94m▀█▄▄[0;34m▀[0m   [0;34m█▄▄█[0m  [0;34m▀▄▄▄█▀[0m
+                                                        
+                                  Powered by OpenWRT    
+ -------------------------------------------------------
+ iStoreOS 25.12.5, 2026091113
+ -------------------------------------------------------
+=== 2. CPU & HARDWARE ===
+processor	: 0
+model name	: Intel(R) Celeron(R) CPU J3455 @ 1.50GHz
+cpu cores	: 4
+processor	: 1
+model name	: Intel(R) Celeron(R) CPU J3455 @ 1.50GHz
+cpu cores	: 4
+processor	: 2
+model name	: Intel(R) Celeron(R) CPU J3455 @ 1.50GHz
+cpu cores	: 4
+processor	: 3
+model name	: Intel(R) Celeron(R) CPU J3455 @ 1.50GHz
+cpu cores	: 4
+Total logical CPU cores: 4
+ 18:16:18 up 2 days, 16:12,  load average: 0.27, 0.14, 0.05
+=== 3. MEMORY & SWAP ===
+              total        used        free      shared  buff/cache   available
+Mem:        7977360      298360     7165544       18692      513456     7551788
+Swap:             0           0           0
+Filename				Type		Size		Used		Priority
+=== 4. DISK & MOUNTS ===
+Filesystem           Type            Size      Used Available Use% Mounted on
+/dev/root            squashfs      221.3M    221.3M         0 100% /rom
+efivars              efivarfs      128.0K     53.1K     69.9K  43% /sys/firmware/efi/efivars
+tmpfs                tmpfs           3.8G      8.4M      3.8G   0% /tmp
+/dev/sda3            ext4            1.9G     19.4M      1.9G   1% /overlay
+overlayfs:/overlay   overlay         1.9G     19.4M      1.9G   1% /
+tmpfs                tmpfs           4.0M         0      4.0M   0% /mnt
+/dev/sda1            vfat          127.7M      8.4M    119.3M   7% /boot
+/dev/sda1            vfat          127.7M      8.4M    119.3M   7% /boot
+tmpfs                tmpfs         512.0K         0    512.0K   0% /dev
+/dev/sda4            ext4          114.5G      2.4M    108.6G   0% /mnt/sata1-4
+tmpfs                tmpfs           3.8G      8.4M      3.8G   0% /tmp/run/netns
+--- lsblk ---
+NAME     SIZE TYPE FSTYPE   MOUNTPOINT   MODEL            TRAN
+sda    119.2G disk                       SSD 128GB        sata
+├─sda1   128M part vfat     /boot                         
+├─sda2   256M part squashfs /rom                          
+├─sda3     2G part ext4     /overlay                      
+└─sda4 116.9G part ext4     /mnt/sata1-4                  
+nbd0       0B disk                                        
+nbd1       0B disk                                        
+nbd2       0B disk                                        
+nbd3       0B disk                                        
+nbd4       0B disk                                        
+nbd5       0B disk                                        
+nbd6       0B disk                                        
+nbd7       0B disk                                        
+zram0      0B disk                                        
+nbd8       0B disk                                        
+nbd9       0B disk                                        
+nbd10      0B disk                                        
+nbd11      0B disk                                        
+nbd12      0B disk                                        
+nbd13      0B disk                                        
+nbd14      0B disk                                        
+nbd15      0B disk                                        
+=== 5. STORAGE DEVICES ===
+Disk /dev/sda: 119.24 GiB, 128035676160 bytes, 250069680 sectors
+=== 6. NETWORK INTERFACES ===
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             DOWN           
+eth1             UP             
+ip6tnl0@NONE     DOWN           
+tunl0@NONE       DOWN           
+sit0@NONE        DOWN           
+dummy0           DOWN           
+gre0@NONE        DOWN           
+gretap0@NONE     DOWN           
+erspan0@NONE     DOWN           
+ip6gre0@NONE     DOWN           
+siit0            DOWN           
+teql0            DOWN           
+br-lan           UP             192.168.1.15/24 fd16:a3e4:51d9::1/60 fe80::260:e0ff:fea2:29cd/64 
+docker0          DOWN           172.17.0.1/16 
+dheth0@if16      UP             
+Interface: bonding_masters | State:  | Speed: unknown Mbps
+Interface: br-lan | State: up | Speed: 10000 Mbps
+Interface: dheth0 | State: up | Speed: 10000 Mbps
+Interface: docker0 | State: down | Speed: -1 Mbps
+Interface: dummy0 | State: down | Speed: unknown Mbps
+Interface: erspan0 | State: down | Speed: unknown Mbps
+Interface: eth0 | State: down | Speed: -1 Mbps
+Interface: eth1 | State: up | Speed: 1000 Mbps
+Interface: gre0 | State: down | Speed: unknown Mbps
+Interface: gretap0 | State: down | Speed: unknown Mbps
+Interface: ip6gre0 | State: down | Speed: unknown Mbps
+Interface: ip6tnl0 | State: down | Speed: unknown Mbps
+Interface: lo | State: unknown | Speed: unknown Mbps
+Interface: siit0 | State: down | Speed: unknown Mbps
+Interface: sit0 | State: down | Speed: unknown Mbps
+Interface: teql0 | State: down | Speed: unknown Mbps
+Interface: tunl0 | State: down | Speed: unknown Mbps
+=== 7. PACKAGE MANAGER ===
+Installed packages count: 0
+=== 8. RUNTIME ENVIRONMENTS ===
+FOUND: docker at /usr/bin/docker
+FOUND: dockerd at /usr/bin/dockerd
+FOUND: containerd at /usr/bin/containerd
+NOT FOUND: podman
+NOT FOUND: ffmpeg
+NOT FOUND: ffprobe
+NOT FOUND: gst-launch-1.0
+NOT FOUND: sqlite3
+NOT FOUND: go
+NOT FOUND: python3
+NOT FOUND: node
+NOT FOUND: npm
+FOUND: mount.cifs at /usr/sbin/mount.cifs
+ Containers: 0
+ Server Version: 27.3.1
+ Storage Driver: overlay2
+ Runtimes: io.containerd.runc.v2 runc
+ Operating System: iStoreOS 25.12.5
+=== 8.1 CIFS / SMB MODULE CHECK ===
+asn1_decoder           12288  4 nf_nat_snmp_basic,ksmbd,cifs,rsa_generic
+cifs                  688128  0 
+cifs_arc4              12288  2 ksmbd,cifs
+cifs_md4               12288  1 cifs
+dns_resolver           12288  2 nfsv4,cifs
+ksmbd                 241664  0 
+netfs                 430080  3 cifs,9p,9pnet
+nls_ucs2_utils          8192  3 ksmbd,cifs,jfs
+oid_registry           12288  3 ksmbd,auth_rpcgss,cifs
+filename:	/lib/modules/6.12.94/cifs.ko
+softdep:	gcm
+softdep:	ccm
+softdep:	aead2
+softdep:	sha512
+=== 9. WEB SERVICES & LISTENING PORTS ===
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 0.0.0.0:3702            0.0.0.0:*               LISTEN      12723/wsdd2
+tcp        0      0 0.0.0.0:7681            0.0.0.0:*               LISTEN      11282/ttyd
+tcp        0      0 127.0.0.1:5037          0.0.0.0:*               LISTEN      10322/adb
+tcp        0      0 0.0.0.0:2049            0.0.0.0:*               LISTEN      -
+tcp        0      0 127.0.0.1:53            0.0.0.0:*               LISTEN      6883/dnsmasq
+tcp        0      0 172.17.0.1:53           0.0.0.0:*               LISTEN      6883/dnsmasq
+tcp        0      0 0.0.0.0:5355            0.0.0.0:*               LISTEN      12723/wsdd2
+tcp        0      0 127.0.0.1:3493          0.0.0.0:*               LISTEN      11645/upsd
+tcp        0      0 192.168.1.15:445        0.0.0.0:*               LISTEN      10077/smbd
+tcp        0      0 192.168.1.15:53         0.0.0.0:*               LISTEN      6883/dnsmasq
+tcp        0      0 127.0.0.1:3038          0.0.0.0:*               LISTEN      9350/quickstart
+tcp        0      0 192.168.1.15:139        0.0.0.0:*               LISTEN      10077/smbd
+tcp        0      0 0.0.0.0:111             0.0.0.0:*               LISTEN      5335/rpcbind
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      8343/uhttpd
+tcp        0      0 0.0.0.0:32780           0.0.0.0:*               LISTEN      11231/rpc.mountd
+tcp        0      0 0.0.0.0:32777           0.0.0.0:*               LISTEN      -
+tcp        0      0 0.0.0.0:32778           0.0.0.0:*               LISTEN      11230/rpc.statd
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      5150/dropbear
+tcp        0      0 0.0.0.0:443             0.0.0.0:*               LISTEN      8343/uhttpd
+tcp        0      0 :::3702                 :::*                    LISTEN      12723/wsdd2
+tcp        0      0 fd16:a3e4:51d9::1:53    :::*                    LISTEN      6883/dnsmasq
+tcp        0      0 fd16:a3e4:51d9::1:139   :::*                    LISTEN      10077/smbd
+tcp        0      0 fd16:a3e4:51d9::1:445   :::*                    LISTEN      10077/smbd
+tcp        0      0 :::3200                 :::*                    LISTEN      10725/FastNet
+tcp        0      0 :::2049                 :::*                    LISTEN      -
+tcp        0      0 :::9876                 :::*                    LISTEN      10427/ddns-go
+tcp        0      0 fe80::260:e0ff:fea2:29cd:53 :::*                    LISTEN      6883/dnsmasq
+tcp        0      0 :::5355                 :::*                    LISTEN      12723/wsdd2
+tcp        0      0 :::8897                 :::*                    LISTEN      10826/linkease
+tcp        0      0 ::1:53                  :::*                    LISTEN      6883/dnsmasq
+tcp        0      0 :::111                  :::*                    LISTEN      5335/rpcbind
+tcp        0      0 :::80                   :::*                    LISTEN      8343/uhttpd
+tcp        0      0 :::32780                :::*                    LISTEN      11231/rpc.mountd
+tcp        0      0 :::32777                :::*                    LISTEN      -
+tcp        0      0 :::32778                :::*                    LISTEN      11230/rpc.statd
+tcp        0      0 :::22                   :::*                    LISTEN      5150/dropbear
+tcp        0      0 :::443                  :::*                    LISTEN      8343/uhttpd
+udp        0      0 0.0.0.0:3702            0.0.0.0:*                           12723/wsdd2
+udp        0      0 0.0.0.0:32777           0.0.0.0:*                           -
+udp        0      0 0.0.0.0:32778           0.0.0.0:*                           11230/rpc.statd
+udp        0      0 0.0.0.0:32780           0.0.0.0:*                           11231/rpc.mountd
+udp        0      0 172.17.0.1:53           0.0.0.0:*                           6883/dnsmasq
+udp        0      0 127.0.0.1:53            0.0.0.0:*                           6883/dnsmasq
+udp        0      0 192.168.1.15:53         0.0.0.0:*                           6883/dnsmasq
+udp        0      0 0.0.0.0:111             0.0.0.0:*                           5335/rpcbind
+udp        0      0 192.168.1.255:137       0.0.0.0:*                           10078/nmbd
+udp        0      0 192.168.1.15:137        0.0.0.0:*                           10078/nmbd
+udp        0      0 0.0.0.0:137             0.0.0.0:*                           10078/nmbd
+udp        0      0 192.168.1.255:138       0.0.0.0:*                           10078/nmbd
+udp        0      0 192.168.1.15:138        0.0.0.0:*                           10078/nmbd
+udp        0      0 0.0.0.0:138             0.0.0.0:*                           10078/nmbd
+udp        0      0 127.0.0.1:806           0.0.0.0:*                           11230/rpc.statd
+udp        0      0 0.0.0.0:5353            0.0.0.0:*                           8588/avahi-daemon: 
+udp        0      0 0.0.0.0:5355            0.0.0.0:*                           12723/wsdd2
+udp        0      0 0.0.0.0:59049           0.0.0.0:*                           5335/rpcbind
+udp        0      0 0.0.0.0:1900            0.0.0.0:*                           10826/linkease
+udp        0      0 :::51819                :::*                                5436/unetd
+udp        0      0 :::3702                 :::*                                12723/wsdd2
+udp        0      0 :::32777                :::*                                -
+udp        0      0 :::32778                :::*                                11230/rpc.statd
+udp        0      0 :::32780                :::*                                11231/rpc.mountd
+udp        0      0 fe80::260:e0ff:fea2:29cd:53 :::*                                6883/dnsmasq
+udp        0      0 fd16:a3e4:51d9::1:53    :::*                                6883/dnsmasq
+udp        0      0 ::1:53                  :::*                                6883/dnsmasq
+udp        0      0 :::111                  :::*                                5335/rpcbind
+udp        0      0 :::5353                 :::*                                8588/avahi-daemon: 
+udp        0      0 :::5355                 :::*                                12723/wsdd2
+udp        0      0 :::58714                :::*                                5335/rpcbind
+=== 10. GPU & HARDWARE ACCELERATION ===
+00:00.0 Host bridge: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series Host Bridge (rev 0d)
+00:02.0 VGA compatible controller: Intel Corporation Apollo Lake GT1 [HD Graphics 500] (rev 0d)
+00:0e.0 Audio device: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series Audio Cluster (rev 0d)
+00:0f.0 Communication controller: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series Trusted Execution Engine (rev 0d)
+00:12.0 SATA controller: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series SATA AHCI Controller (rev 0d)
+00:13.0 PCI bridge: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port A #1 (rev fd)
+00:13.1 PCI bridge: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port A #2 (rev fd)
+00:13.2 PCI bridge: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port A #3 (rev fd)
+00:15.0 USB controller: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series USB xHCI (rev 0d)
+00:1c.0 SD Host controller: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series eMMC Controller (rev 0d)
+00:1f.0 ISA bridge: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series Low Pin Count Interface (rev 0d)
+00:1f.1 SMBus: Intel Corporation Celeron N3350/Pentium N4200/Atom E3900 Series SMBus Controller (rev 0d)
+01:00.0 Ethernet controller: Intel Corporation Ethernet Controller I226-IT (rev 04)
+02:00.0 Ethernet controller: Intel Corporation Ethernet Controller I226-IT (rev 04)
+drwxr-xr-x    2 root     root            80 Sep 22 02:04 .
+drwxr-xr-x   13 root     root          3500 Sep 22 02:14 ..
+crw-------    1 root     root      226,   0 Sep 22 02:04 card0
+crw-------    1 root     root      226, 128 Sep 22 02:04 renderD128

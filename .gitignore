@@ -1,0 +1,37 @@
+# 二进制与编译产物
+backend/istore-nvr
+backend/istore-nvr.exe
+backend/dist/
+frontend/dist/
+*.ipk
+*.tar.gz
+*.zip
+
+# 数据库与运行时临时文件
+data/*.db
+data/*.db-wal
+data/*.db-shm
+*.log
+*.log.*
+/tmp/
+
+# 前端依赖
+frontend/node_modules/
+.npm
+.yarn
+
+# IDE 与操作系统临时文件
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 敏感信息
+*.pem
+*.key
+.env
+.env.*
+!backend/go.mod
+!backend/go.sum

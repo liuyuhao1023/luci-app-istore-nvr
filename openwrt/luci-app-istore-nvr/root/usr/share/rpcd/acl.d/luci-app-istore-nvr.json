@@ -1,0 +1,14 @@
+{
+  "luci-app-istore-nvr": {
+    "description": "Grant access to iStore NVR configuration and service",
+    "read": {
+      "uci": [ "istore-nvr" ],
+      "file": {
+        "/etc/config/istore-nvr": [ "read" ]
+      }
+    },
+    "write": {
+      "uci": [ "istore-nvr" ]
+    }
+  }
+}
