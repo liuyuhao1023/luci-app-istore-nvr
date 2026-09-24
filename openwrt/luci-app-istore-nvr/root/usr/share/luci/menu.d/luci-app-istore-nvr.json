@@ -1,6 +1,7 @@
 {
 	"admin/services/istore-nvr": {
-		"title": "iStore NVR 监控",
+		"title": "NVR摄像头管理",
+		"order": 59,
 		"action": {
 			"type": "firstchild"
 		},
@@ -10,11 +11,19 @@
 		}
 	},
 	"admin/services/istore-nvr/config": {
-		"title": "系统配置与入口",
-		"order": 1,
+		"title": "服务配置",
+		"order": 10,
 		"action": {
 			"type": "view",
 			"path": "istore-nvr/config"
+		}
+	},
+	"admin/services/istore-nvr/web": {
+		"title": "Web 监控中心",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "istore-nvr/web"
 		}
 	}
 }

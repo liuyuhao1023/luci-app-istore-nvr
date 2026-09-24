@@ -23,7 +23,7 @@ function renderStatusBar(status, port) {
 	var icon = isRunning ? '●' : '○';
 
 	var html = String.format('<em><span style="color:%s; font-size:14px; font-weight:bold;">%s %s %s</span></em>',
-		color, icon, _('iStore NVR 服务'), statusText);
+		color, icon, _('NVR摄像头管理服务'), statusText);
 
 	if (isRunning && status.pid) {
 		html += ' <small style="color:#64748b;">(PID: ' + status.pid + ')</small>';
@@ -32,8 +32,8 @@ function renderStatusBar(status, port) {
 	if (isRunning) {
 		var host = window.location.hostname;
 		var fullUrl = 'http://' + host + ':' + port + '/';
-		html += String.format('&#160;&#160;<a class="btn cbi-button cbi-button-apply" style="display:inline-block; font-weight:bold; background-color:#3b82f6; color:#ffffff; padding:4px 14px; text-decoration:none; border-radius:4px;" href="%s" target="_blank">%s &gt;&gt;</a>',
-			fullUrl, _('打开 iStore NVR 独立监控中心'));
+		html += String.format('&#160;&#160;<a class="btn cbi-button cbi-button-apply" style="display:inline-block; font-weight:bold; background-color:#3b82f6; color:#ffffff; padding:5px 16px; text-decoration:none; border-radius:4px;" href="%s" target="_blank">%s &gt;&gt;</a>',
+			fullUrl, _('进入 NVR Web 监控后台'));
 	}
 
 	return html;
@@ -50,7 +50,7 @@ return view.extend({
 		var m, s, o;
 		var port = uci.get('istore-nvr', 'config', 'port') || '8080';
 
-		m = new form.Map('istore-nvr', _('iStore NVR 网络视频监控管理系统'),
+		m = new form.Map('istore-nvr', _('NVR摄像头管理服务'),
 			_('专为软路由定制的高性能网络视频录像系统。支持海康威视等摄像头跨网段直通录像、WebRTC 超低延迟多画面实时预览及局域网 NAS (SMB/CIFS) 网络存储。'));
 
 		s = m.section(form.TypedSection);
@@ -65,14 +65,14 @@ return view.extend({
 				});
 			}, 3);
 
-			return E('div', { class: 'cbi-section', id: 'status_bar', style: 'padding: 12px; background: rgba(0,0,0,0.03); border-radius: 6px; margin-bottom: 16px;' }, [
+			return E('div', { class: 'cbi-section', id: 'status_bar', style: 'padding: 14px; background: rgba(0,0,0,0.03); border-radius: 6px; margin-bottom: 16px;' }, [
 				statusView
 			]);
 		};
 
-		s = m.section(form.NamedSection, 'config', 'istore-nvr', _('基础运行配置'));
+		s = m.section(form.NamedSection, 'config', 'istore-nvr', _('基础运行参数配置'));
 
-		o = s.option(form.Flag, 'enabled', _('启用 iStore NVR 服务'));
+		o = s.option(form.Flag, 'enabled', _('启用服务'));
 		o.default = o.enabled;
 		o.rmempty = false;
 
