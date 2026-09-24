@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build Multi-Arch Binaries & IPK
+    name: Build Multi-Arch Binaries, IPK & APK Packages
     runs-on: ubuntu-latest
 
     steps:
@@ -32,23 +32,31 @@ jobs:
           go-version: '1.22'
           check-latest: true
 
-      - name: Build Linux amd64 Binary
+      - name: Build Multi-Arch Binaries
         run: |
+          mkdir -p bin
           cd backend
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/istore-nvr-linux-amd64 ./cmd/server
-
-      - name: Build Linux arm64 Binary
-        run: |
-          cd backend
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../bin/istore-nvr-linux-arm64 ./cmd/server
+          cd ..
+
+      - name: Build Dual Format Packages (IPK & APK)
+        run: |
+          chmod +x scripts/build_packages.sh
+          ./scripts/build_packages.sh
 
       - name: Package Release Archives
         run: |
           mkdir -p dist-release
+          # 打包二进制
           cd bin
           tar -czvf ../dist-release/istore-nvr-linux-amd64.tar.gz istore-nvr-linux-amd64
           tar -czvf ../dist-release/istore-nvr-linux-arm64.tar.gz istore-nvr-linux-arm64
+          # 复制双格式安装包
+          cp *.ipk ../dist-release/ || true
+          cp *.apk ../dist-release/ || true
           cd ..
+          ls -lh dist-release/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
