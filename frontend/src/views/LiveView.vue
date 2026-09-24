@@ -21,6 +21,10 @@
         </el-radio-group>
 
         <el-divider direction="vertical" />
+        <el-button size="small" type="primary" plain @click="autoArrangeSlots">
+          <el-icon><Grid /></el-icon>
+          一键顺序排列
+        </el-button>
         <el-button size="small" @click="refreshAllStreams">
           <el-icon><Refresh /></el-icon>
           刷新流
@@ -277,9 +281,34 @@ const removeSlotCamera = (idx: number) => {
   saveSlotState()
 }
 
+// 一键按顺序自动分配摄像头通道
+const autoArrangeSlots = () => {
+  const count = layoutCount.value
+  const newSlots: Slot[] = []
+  for (let i = 0; i < count; i++) {
+    const cam = cameras.value[i] || null
+    const streamType = count === 1 ? 'main' : 'sub'
+    const s: Slot = {
+      camera: cam,
+      streamType,
+    }
+    if (cam) {
+      loadSlotStream(s)
+    }
+    newSlots.push(s)
+  }
+  slots.value = newSlots
+  saveSlotState()
+  ElMessage.success(`已按顺序分配前 ${Math.min(count, cameras.value.length)} 路摄像头`)
+}
+
 // 主/子码流切换
 const toggleStreamType = (slot: Slot) => {
-  slot.streamType = slot.streamType === 'main' ? 'sub' : 'main'
+  const nextType = slot.streamType === 'main' ? 'sub' : 'main'
+  if (nextType === 'main' && slot.camera?.video_codec?.toLowerCase().includes('265')) {
+    ElMessage.warning('提示: 该摄像头主码流为 4K/2K H.265 编码，部分浏览器硬件可能无法直接解码，建议优先使用子码流')
+  }
+  slot.streamType = nextType
   slot.playUrl = ''
   loadSlotStream(slot)
   saveSlotState()
@@ -316,7 +345,7 @@ onMounted(async () => {
     console.error(e)
   }
 
-  // 恢复保存的槽位配置
+  // 恢复保存的槽位配置，并严格去重
   let savedSlots: SavedSlotConfig[] = []
   try {
     const raw = localStorage.getItem('nvr_live_slots')
@@ -333,14 +362,22 @@ onMounted(async () => {
     let cam = null
     let streamType: 'main' | 'sub' = count === 1 ? 'main' : 'sub'
 
+    // 优先从历史存储中恢复，但严禁重复使用同一摄像头
     if (savedSlots[i] && savedSlots[i].camId) {
-      cam = cameras.value.find((c) => c.id === savedSlots[i].camId) || null
-      streamType = savedSlots[i].streamType || streamType
-    } else if (savedSlots.length === 0) {
-      // 首次使用没有历史缓存时，按顺序分配不重复的摄像头
+      const candidate = cameras.value.find((c) => c.id === savedSlots[i].camId)
+      if (candidate && !usedCamIds.has(candidate.id)) {
+        cam = candidate
+        // 多画面默认子码流
+        streamType = count === 1 ? 'main' : (savedSlots[i].streamType || 'sub')
+      }
+    }
+
+    // 若未分配或已被去重，则从剩余未使用的摄像头中选一个补充
+    if (!cam) {
       const unused = cameras.value.find((c) => !usedCamIds.has(c.id))
       if (unused) {
         cam = unused
+        streamType = count === 1 ? 'main' : 'sub'
       }
     }
 
@@ -356,6 +393,7 @@ onMounted(async () => {
   }
 
   slots.value = newSlots
+  saveSlotState()
 })
 </script>
 
