@@ -6,6 +6,9 @@ frontend/dist/
 *.ipk
 *.tar.gz
 *.zip
+!bin/*.ipk
+!bin/*.apk
+!bin/*.tar.gz
 
 # 数据库与运行时临时文件
 data/*.db
