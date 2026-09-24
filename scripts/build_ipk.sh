@@ -46,9 +46,10 @@ cat << 'EOF' > "$BUILD_DIR/control/postinst"
 	chmod 755 /etc/init.d/istore-nvr 2>/dev/null || true
 	chmod 755 /mnt/sata1-4/istore-nvr/istore-nvr 2>/dev/null || true
 	chmod 755 /mnt/sata1-4/istore-nvr/mediamtx 2>/dev/null || true
-	rm -f /tmp/luci-indexcache /tmp/luci-modulecache
+	rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache* /usr/lib/lua/luci/controller/*nvr* /usr/lib/lua/luci/model/cbi/*nvr*
 	/etc/init.d/rpcd reload 2>/dev/null || true
 	/etc/init.d/istore-nvr enable 2>/dev/null || true
+	/etc/init.d/istore-nvr restart 2>/dev/null || true
 }
 exit 0
 EOF

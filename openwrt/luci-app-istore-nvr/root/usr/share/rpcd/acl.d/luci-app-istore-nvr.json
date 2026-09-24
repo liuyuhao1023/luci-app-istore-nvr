@@ -4,7 +4,10 @@
     "read": {
       "uci": [ "istore-nvr" ],
       "file": {
-        "/bin/pidof": [ "exec" ]
+        "/bin/pidof": [ "exec" ],
+        "/bin/ps": [ "exec" ],
+        "/bin/ash": [ "exec" ],
+        "/etc/init.d/istore-nvr": [ "exec" ]
       }
     },
     "write": {
