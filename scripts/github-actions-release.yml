@@ -1,0 +1,60 @@
+name: Build and Release iStore NVR
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Multi-Arch Binaries & IPK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Frontend Assets
+        run: |
+          cd frontend
+          npm install
+          npm run build-only
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          check-latest: true
+
+      - name: Build Linux amd64 Binary
+        run: |
+          cd backend
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/istore-nvr-linux-amd64 ./cmd/server
+
+      - name: Build Linux arm64 Binary
+        run: |
+          cd backend
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../bin/istore-nvr-linux-arm64 ./cmd/server
+
+      - name: Package Release Archives
+        run: |
+          mkdir -p dist-release
+          cd bin
+          tar -czvf ../dist-release/istore-nvr-linux-amd64.tar.gz istore-nvr-linux-amd64
+          tar -czvf ../dist-release/istore-nvr-linux-arm64.tar.gz istore-nvr-linux-arm64
+          cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist-release/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
