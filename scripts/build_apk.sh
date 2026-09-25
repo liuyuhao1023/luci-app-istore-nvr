@@ -3,7 +3,7 @@ set -e
 
 # OpenWrt / Alpine APK 打包脚本 (遵循 APK 格式标准)
 PKG_NAME="luci-app-istore-nvr"
-PKG_VERSION="1.0.0-r1"
+PKG_VERSION="1.0.1-r1"
 BUILD_DIR="/tmp/apk_build"
 OUTPUT_DIR="$(pwd)/bin"
 

@@ -20,9 +20,10 @@
 
 | 安装包名称 | 适用操作系统 / 场景 | GitHub 直链下载 | 仓库内镜像 | 一键安装命令 / 说明 |
 | :--- | :--- | :--- | :--- | :--- |
-| **`luci-app-istore-nvr_1.0.0-1_all.run`** | **iStoreOS 官方推荐** (商店「手动安装」专属自解压格式) | [⬇️ 下载 .run](https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.0/luci-app-istore-nvr_1.0.0-1_all.run) | [bin/ 镜像](https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/luci-app-istore-nvr_1.0.0-1_all.run) | iStore 商店「手动安装」直接上传<br>*(或终端 `sh <file.run>`)* |
-| **`luci-app-istore-nvr_1.0.0-1_all.ipk`** | **原生 OpenWrt / ImmortalWrt** (传统 OPKG 环境) | [⬇️ 下载 .ipk](https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.0/luci-app-istore-nvr_1.0.0-1_all.ipk) | [bin/ 镜像](https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/luci-app-istore-nvr_1.0.0-1_all.ipk) | `opkg install <file.ipk>` |
-| **`openwrt-nvr_1.0.0_linux_amd64.tar.gz`** | **通用 Linux / 离线全家桶** (含核心二进制与网关) | [⬇️ 下载离线包](https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.0/openwrt-nvr_1.0.0_linux_amd64.tar.gz) | [bin/ 镜像](https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/openwrt-nvr_1.0.0_linux_amd64.tar.gz) | 解压后执行 `sh scripts/install.sh` |
+| **`luci-app-istore-nvr_1.0.1-1_all.run`** | **iStoreOS 官方推荐** (商店「手动安装」专属自解压格式) | [⬇️ 下载 .run](https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.1/luci-app-istore-nvr_1.0.1-1_all.run) | [bin/ 镜像](https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/luci-app-istore-nvr_1.0.1-1_all.run) | iStore 商店「手动安装」直接上传<br>*(或终端 `sh <file.run>`)* |
+| **`luci-app-istore-nvr_1.0.1-1_all.ipk`** | **原生 OpenWrt / ImmortalWrt** (传统 OPKG 环境 21.x~23.x) | [⬇️ 下载 .ipk](https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.1/luci-app-istore-nvr_1.0.1-1_all.ipk) | [bin/ 镜像](https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/luci-app-istore-nvr_1.0.1-1_all.ipk) | `opkg install <file.ipk>` |
+| **`luci-app-istore-nvr-1.0.1-r1.apk`** | **OpenWrt 24.x+ / Alpine** (全新 APK 包管理器) | [⬇️ 下载 .apk](https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.1/luci-app-istore-nvr-1.0.1-r1.apk) | [bin/ 镜像](https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/luci-app-istore-nvr-1.0.1-r1.apk) | `apk add --allow-untrusted <file.apk>` |
+| **`openwrt-nvr_1.0.1_linux_amd64.tar.gz`** | **通用 Linux / 离线全家桶** (含核心二进制与网关) | [⬇️ 下载离线包](https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.1/openwrt-nvr_1.0.1_linux_amd64.tar.gz) | [bin/ 镜像](https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/openwrt-nvr_1.0.1_linux_amd64.tar.gz) | 解压后执行 `sh scripts/install.sh` |
 
 ---
 
@@ -67,7 +68,7 @@
 
 ### 方式一：iStoreOS 商店手动上传安装（最推荐、免命令行）
 
-1. 在上方表格中下载 **`luci-app-istore-nvr_1.0.0-1_all.run`** 安装包到您的本地电脑；
+1. 在上方表格中下载 **`luci-app-istore-nvr_1.0.1-1_all.run`** 安装包到您的本地电脑；
 2. 打开软路由后台，进入 **【iStore】->【全部软件】->【手动安装】**；
 3. 点击选择刚才下载的 `.run` 文件，点击“上传并安装”，系统全自动完成解压、权限注册与自启；
 4. 刷新网页，在左侧导航进入 **【服务】->【NVR摄像头管理】** 即可开始使用！
@@ -76,14 +77,20 @@
 
 * **iStoreOS 终端一键安装**：
   ```sh
-  wget https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.0/luci-app-istore-nvr_1.0.0-1_all.run
-  sh luci-app-istore-nvr_1.0.0-1_all.run
+  wget https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.1/luci-app-istore-nvr_1.0.1-1_all.run
+  sh luci-app-istore-nvr_1.0.1-1_all.run
   ```
 
 * **原生 OpenWrt / ImmortalWrt (IPK 格式)**：
   ```sh
-  wget https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.0/luci-app-istore-nvr_1.0.0-1_all.ipk
-  opkg install luci-app-istore-nvr_1.0.0-1_all.ipk
+  wget https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.1/luci-app-istore-nvr_1.0.1-1_all.ipk
+  opkg install luci-app-istore-nvr_1.0.1-1_all.ipk
+  ```
+
+* **OpenWrt 24.x+ / Alpine (APK 格式)**：
+  ```sh
+  wget https://github.com/liuyuhao1023/luci-app-istore-nvr/releases/download/v1.0.1/luci-app-istore-nvr-1.0.1-r1.apk
+  apk add --allow-untrusted luci-app-istore-nvr-1.0.1-r1.apk
   ```
 
 ### 方式二：手动独立运行
@@ -144,6 +151,17 @@ sh scripts/build_ipk.sh
 
 1. **零密码明文**：所有摄像头密码与 SMB 密码均采用 AES-GCM 高强度密文存储，Web API 绝不返回密码明文；
 2. **闪存保护红线**：严禁将录像文件和临时日志写入软路由系统分区（`/overlay`）以防止设备死机变砖；录像必须保存在数据盘（`/mnt/sata*`、外接移动硬盘或 SMB NAS）中。
+
+---
+
+## 📝 更新日志 (Changelog)
+
+### v1.0.1 (2026-09-25)
+- 🚀 **全面兼容 H.265 / H.264 解码播放**：重构实时预览播放架构，底层引入 `hls.js` + fMP4 极速低延迟自适应流引擎，完美支持 4K/2K H.265 (HEVC) 高清码流原生硬解与秒开；
+- 🖥️ **经典录像机紧凑型无黑边预览**：去除多余标题高度挤占，采用专业安防监控 OSD 水印浮层与极窄微缝分割，全画面满幅铺满，还原传统 NVR 硬件输出监视器视觉；
+- ⚡ **全通道默认主码流**：初始化、新增槽位及一键顺序排列均默认采用高清主码流；
+- 📦 **全平台安装包支持**：同时提供 iStoreOS `.run` 自解压包、OpenWrt 传统 `.ipk`（OPKG）以及 OpenWrt 24.x 全新 `.apk`（APK）三种安装包格式；
+- 🛡️ **权限自愈与优雅重载**：遵循官方避坑规范，打包脚本与 `postinst` 增加执行权限显式补全与 `rpcd reload` 优雅触发机制。
 
 ---
 

@@ -39,3 +39,22 @@ Thumbs.db
 .env.*
 !backend/go.mod
 !backend/go.sum
+
+# 临时测试脚本与本地探针
+test_*.py
+scan_*.py
+fuzz_*.py
+batch_update_ports.py
+change_ports.sh
+check_env.sh
+env_report.txt
+list_114_assets.py
+full_scan
+full_scan.go
+onvif_probe
+onvif_probe.go
+probe_rtsp
+probe_rtsp.go
+update_db
+mediamtx.tar.gz
+STAGE1_AUDIT_REPORT.md

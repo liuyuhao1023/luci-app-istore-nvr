@@ -3,7 +3,7 @@ set -e
 
 # iStoreOS / OpenWrt 标准 .run 自解压全功能独立安装包打包工具
 PKG_NAME="luci-app-istore-nvr"
-PKG_VERSION="1.0.0-1"
+PKG_VERSION="1.0.1-1"
 OUTPUT_DIR="$(pwd)/bin"
 RUN_FILE="${OUTPUT_DIR}/${PKG_NAME}_${PKG_VERSION}_all.run"
 TMP_DIR="/tmp/run_build_$$"

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 PKG_NAME="luci-app-istore-nvr"
-PKG_VERSION="1.0.0-1"
+PKG_VERSION="1.0.1-1"
 PKG_ARCH="all"
 BUILD_DIR="/tmp/ipk_build"
 

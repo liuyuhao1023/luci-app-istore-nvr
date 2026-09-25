@@ -1,7 +1,7 @@
 {
   "name": "luci-app-istore-nvr",
   "title": "NVR 摄像头管理系统",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "liuyuhao1023",
   "description": "专为软路由打造的高性能网络视频监控录像系统(NVR)，支持海康威视等摄像头跨网段直通录像、WebRTC极低延迟实时多画面预览与局域网NAS存储。",
   "icon": "icon.png",
