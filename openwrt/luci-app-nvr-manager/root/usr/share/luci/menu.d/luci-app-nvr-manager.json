@@ -1,0 +1,29 @@
+{
+	"admin/services/nvr-manager": {
+		"title": "NVR视频监控",
+		"order": 59,
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-nvr-manager" ],
+			"uci": { "nvr-manager": true }
+		}
+	},
+	"admin/services/nvr-manager/config": {
+		"title": "服务配置",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "nvr-manager/config"
+		}
+	},
+	"admin/services/nvr-manager/web": {
+		"title": "Web 监控中心",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "nvr-manager/web"
+		}
+	}
+}

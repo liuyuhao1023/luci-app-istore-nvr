@@ -1,5 +1,0 @@
-config istore-nvr 'config'
-	option enabled '1'
-	option port '8080'
-	option data_dir '/mnt/sata1-4/istore-nvr/data'
-	option record_dir '/mnt/sata1-4/recordings'
