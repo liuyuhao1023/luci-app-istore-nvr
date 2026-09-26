@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -50,9 +51,7 @@ func (e *StreamEngine) Close() {
 	if e.mediaMTXCmd != nil && e.mediaMTXCmd.Process != nil {
 		_ = e.mediaMTXCmd.Process.Kill()
 	}
-	if runtime.GOOS == "linux" {
-		_ = exec.Command("killall", "mediamtx").Run()
-	}
+	_ = os.Remove("/var/run/mediamtx.pid")
 }
 
 // ensureMediaMTX 确保 MediaMTX 正在后台运行
@@ -62,17 +61,31 @@ func (e *StreamEngine) ensureMediaMTX() {
 		return
 	}
 
-	baseDir := "/mnt/sata1-4/istore-nvr"
-	binPath := filepath.Join(baseDir, "mediamtx")
-	confPath := filepath.Join(baseDir, "mediamtx.yml")
+	// 动态查找 mediamtx 可执行文件：依次搜索 PATH、当前程序目录、/usr/bin
+	binPath := ""
+	if p, err := exec.LookPath("mediamtx"); err == nil {
+		binPath = p
+	} else if exe, err := os.Executable(); err == nil {
+		candidate := filepath.Join(filepath.Dir(exe), "mediamtx")
+		if _, err := os.Stat(candidate); err == nil {
+			binPath = candidate
+		}
+	}
+	if binPath == "" {
+		if _, err := os.Stat("/usr/bin/mediamtx"); err == nil {
+			binPath = "/usr/bin/mediamtx"
+		}
+	}
 
-	if _, err := os.Stat(binPath); os.IsNotExist(err) {
-		log.Printf("[StreamEngine] 警告: %s 不存在，请确保已下载 MediaMTX", binPath)
+	if binPath == "" {
+		log.Println("[StreamEngine] 警告: 未找到 mediamtx 可执行文件，流媒体服务无法启动")
 		return
 	}
 
+	confPath := "/tmp/mediamtx.yml"
+
 	// 动态检测 OpenWrt 局域网 IP
-	lanIP := "192.168.1.15"
+	lanIP := "192.168.1.1"
 	if out, err := exec.Command("uci", "-q", "get", "network.lan.ipaddr").Output(); err == nil {
 		t := strings.TrimSpace(string(out))
 		if t != "" {
@@ -81,7 +94,6 @@ func (e *StreamEngine) ensureMediaMTX() {
 	}
 
 	// 生成基础配置 (开启 API, WebRTC, HLS, RTSP)
-	// 重点: 禁用从 docker0 等虚拟接口提取 ICE candidate，指定 LAN IP，确保局域网直接建立 WebRTC 会话
 	confContent := fmt.Sprintf(`logLevel: info
 logDestinations: [stdout]
 
@@ -111,9 +123,16 @@ paths:
 `, lanIP)
 	_ = os.WriteFile(confPath, []byte(confContent), 0644)
 
-	// 先清理历史可能残留的旧实例
-	_ = exec.Command("killall", "mediamtx").Run()
-	time.Sleep(500 * time.Millisecond)
+	// 若存在旧 pid，安全清理该进程，严禁使用 killall 影响容器
+	if pidBytes, err := os.ReadFile("/var/run/mediamtx.pid"); err == nil {
+		if oldPid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes))); err == nil && oldPid > 0 {
+			if proc, err := os.FindProcess(oldPid); err == nil {
+				_ = proc.Kill()
+			}
+		}
+		_ = os.Remove("/var/run/mediamtx.pid")
+		time.Sleep(200 * time.Millisecond)
+	}
 
 	log.Printf("[StreamEngine] 正在启动 MediaMTX: %s", binPath)
 	cmd := exec.Command(binPath, confPath)
@@ -123,6 +142,10 @@ paths:
 	if err := cmd.Start(); err != nil {
 		log.Printf("[StreamEngine] 启动 MediaMTX 失败: %v", err)
 		return
+	}
+
+	if cmd.Process != nil {
+		_ = os.WriteFile("/var/run/mediamtx.pid", []byte(strconv.Itoa(cmd.Process.Pid)), 0644)
 	}
 
 	e.mu.Lock()

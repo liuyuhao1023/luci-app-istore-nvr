@@ -92,11 +92,8 @@ func (h *SystemHandler) GetStats(c *gin.Context) {
 			}
 		}
 
-		// 3. 读取本地数据盘存储 (/mnt/sata1-4)
-		targetPath := "/mnt/sata1-4"
-		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-			targetPath = "/"
-		}
+		// 3. 读取本地存储状态
+		targetPath := "/"
 		var stat syscall.Statfs_t
 		if err := syscall.Statfs(targetPath, &stat); err == nil {
 			totalBytes := stat.Blocks * uint64(stat.Bsize)

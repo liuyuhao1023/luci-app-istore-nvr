@@ -1,5 +1,5 @@
 config nvr-manager 'config'
-	option enabled '1'
+	option enabled '0'
 	option port '8080'
-	option data_dir '/mnt/sata1-4/nvr-manager/data'
-	option record_dir '/mnt/sata1-4/recordings'
+	option data_dir ''
+	option record_dir ''

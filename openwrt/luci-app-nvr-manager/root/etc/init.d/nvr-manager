@@ -4,32 +4,38 @@ START=95
 STOP=10
 USE_PROCD=1
 
-PROG=/mnt/sata1-4/nvr-manager/nvr-manager
-BIN_FALLBACK=/usr/bin/nvr-manager
+PROG=/usr/bin/nvr-manager
 CONF=nvr-manager
 
 start_service() {
     config_load "$CONF"
-    
-    local enabled port data_dir
-    config_get_bool enabled config enabled 1
+
+    local enabled port data_dir record_dir
+    config_get_bool enabled config enabled 0
     config_get port config port 8080
-    config_get data_dir config data_dir '/mnt/sata1-4/nvr-manager/data'
+    config_get data_dir config data_dir ''
+    config_get record_dir config record_dir ''
 
     [ "$enabled" -eq 1 ] || return 0
 
-    local bin="$PROG"
-    [ -x "$bin" ] || bin="$BIN_FALLBACK"
+    if [ -z "$data_dir" ]; then
+        echo "nvr-manager: data_dir is not configured. Please specify an external storage directory." >&2
+        return 1
+    fi
 
-    if [ ! -x "$bin" ]; then
-        echo "Error: nvr-manager executable not found in $PROG or $BIN_FALLBACK"
+    if [ ! -x "$PROG" ]; then
+        echo "Error: $PROG not found or not executable" >&2
         return 1
     fi
 
     mkdir -p "$data_dir"
 
     procd_open_instance
-    procd_set_param command "$bin" -port "$port" -db "$data_dir/nvr.db"
+    if [ -n "$record_dir" ]; then
+        procd_set_param command "$PROG" -port "$port" -db "$data_dir/nvr.db" -record-dir "$record_dir"
+    else
+        procd_set_param command "$PROG" -port "$port" -db "$data_dir/nvr.db"
+    fi
     procd_set_param respawn 3600 5 0
     procd_set_param stdout 1
     procd_set_param stderr 1
@@ -37,12 +43,15 @@ start_service() {
     procd_close_instance
 }
 
-stop_service() {
-    killall nvr-manager 2>/dev/null
-    killall mediamtx 2>/dev/null
+service_stopped() {
+    if [ -f /var/run/mediamtx.pid ]; then
+        local mpid
+        mpid=$(cat /var/run/mediamtx.pid 2>/dev/null)
+        [ -n "$mpid" ] && kill "$mpid" 2>/dev/null || true
+        rm -f /var/run/mediamtx.pid
+    fi
 }
 
 reload_service() {
-    stop
-    start
+    restart
 }

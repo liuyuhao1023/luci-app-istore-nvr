@@ -80,7 +80,7 @@ func (s *StorageService) AddStorage(req *model.Storage, rawPassword string) (*mo
 	} else {
 		// 本地存储
 		if req.MountPoint == "" {
-			req.MountPoint = "/mnt/sata1-4/recordings"
+			return nil, errors.New("本地存储必须指定存储目录路径")
 		}
 		// 严禁将录像根目录设为根目录 / 或 /overlay
 		if req.MountPoint == "/" || strings.HasPrefix(req.MountPoint, "/overlay") {

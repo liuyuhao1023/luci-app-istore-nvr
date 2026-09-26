@@ -4,9 +4,6 @@
     "read": {
       "uci": [ "nvr-manager" ],
       "file": {
-        "/bin/pidof": [ "exec" ],
-        "/bin/ps": [ "exec" ],
-        "/bin/ash": [ "exec" ],
         "/etc/init.d/nvr-manager": [ "exec" ]
       }
     },

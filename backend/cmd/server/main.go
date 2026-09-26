@@ -31,11 +31,7 @@ func main() {
 	// 1. 确定安全的数据库落盘路径 (绝对禁止在软路由 /overlay 上持续写库)
 	dbPath := *dbFlag
 	if dbPath == "" {
-		if _, err := os.Stat("/mnt/sata1-4"); err == nil {
-			dbPath = "/mnt/sata1-4/istore-nvr/data/nvr.db"
-		} else {
-			dbPath = filepath.Join("data", "nvr.db")
-		}
+		dbPath = filepath.Join("data", "nvr.db")
 	}
 	log.Printf("[Init] 数据库存储路径: %s\n", dbPath)
 

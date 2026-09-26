@@ -153,7 +153,7 @@
         <!-- 本地目录 -->
         <template v-else>
           <el-form-item label="本地目录路径" required>
-            <el-input v-model="storageForm.mount_point" placeholder="例如: /mnt/sata1-4/recordings" />
+            <el-input v-model="storageForm.mount_point" placeholder="例如: /mnt/sda1/recordings" />
           </el-form-item>
         </template>
 
@@ -259,7 +259,7 @@ const openAddDialog = (type: 'local' | 'smb') => {
     username: '',
     password: '',
     smb_version: '3.0',
-    mount_point: type === 'local' ? '/mnt/sata1-4/recordings' : '',
+    mount_point: '',
     alert_threshold_percent: 90,
     auto_clean_enabled: true,
     min_retention_days: 3,

@@ -73,11 +73,7 @@ func seedDefaultData(db *gorm.DB) {
 	var storageCount int64
 	db.Model(&model.Storage{}).Count(&storageCount)
 	if storageCount == 0 {
-		// 优先探测软路由的 /mnt/sata1-4，否则使用本地 recordings
-		mountPoint := "/mnt/sata1-4/recordings"
-		if _, err := os.Stat("/mnt/sata1-4"); os.IsNotExist(err) {
-			mountPoint = "./recordings"
-		}
+		mountPoint := "./recordings"
 
 		defaultStorage := model.Storage{
 			Name:                  "本地主存储",

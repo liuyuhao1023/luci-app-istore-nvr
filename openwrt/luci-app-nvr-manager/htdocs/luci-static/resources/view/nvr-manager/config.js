@@ -6,22 +6,12 @@
 'require form';
 'require poll';
 
-async function checkProcess() {
-	try {
-		const res = await fs.exec('/bin/pidof', ['nvr-manager']);
-		if (res.code === 0 && res.stdout.trim() !== '') {
-			return { running: true, pid: res.stdout.trim() };
-		}
-	} catch (err) {}
-
-	try {
-		const res = await fs.exec('/bin/ps', ['-C', 'nvr-manager', '-o', 'pid=']);
-		if (res.code === 0 && res.stdout.trim() !== '') {
-			return { running: true, pid: res.stdout.trim() };
-		}
-	} catch (err) {}
-
-	return { running: false, pid: null };
+function checkProcess() {
+	return fs.exec('/etc/init.d/nvr-manager', ['running']).then(function(res) {
+		return { running: (res.code === 0) };
+	}).catch(function() {
+		return { running: false };
+	});
 }
 
 function renderStatusHeader(status, port) {
@@ -32,8 +22,6 @@ function renderStatusHeader(status, port) {
 
 	var host = window.location.hostname;
 	var fullUrl = window.location.protocol + '//' + host + ':' + port + '/';
-
-	var pidInfo = (isRunning && status.pid) ? (' <span style="font-weight:normal; color:#64748b; font-size:12px;">(PID: ' + status.pid + ')</span>') : '';
 
 	var btnHtml = '';
 	if (isRunning) {
@@ -49,7 +37,7 @@ function renderStatusHeader(status, port) {
 	} else {
 		btnHtml = String.format(
 			'<span style="color:#ef4444; font-size:13px;">%s</span>',
-			_('服务未启动，请在下方勾选【启用服务】并保存应用以启动 NVR。')
+			_('服务未运行。请确保已指定外部存储路径并勾选【启用服务】后保存应用。')
 		);
 	}
 
@@ -61,7 +49,6 @@ function renderStatusHeader(status, port) {
 						'<span style="color:%s; font-size:16px;">%s</span>' +
 						'<span style="font-size: 16px; font-weight: bold; color: #1e293b;">%s</span>' +
 						'<span style="background: %s15; color: %s; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600;">%s</span>' +
-						'%s' +
 					'</div>' +
 					'<div style="font-size: 13px; color: #64748b;">' +
 						'%s <a href="%s" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline;">%s</a>' +
@@ -75,7 +62,6 @@ function renderStatusHeader(status, port) {
 		statusColor, icon,
 		_('NVR 监控管理服务'),
 		statusColor, statusColor, statusText,
-		pidInfo,
 		_('Web 控制台访问地址:'), fullUrl, fullUrl,
 		btnHtml
 	);
@@ -116,7 +102,7 @@ return view.extend({
 		s = m.section(form.NamedSection, 'config', 'nvr-manager', _('基础运行参数配置'));
 
 		o = s.option(form.Flag, 'enabled', _('启用服务'));
-		o.default = o.enabled;
+		o.default = o.disabled;
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'port', _('Web 管理服务监听端口'));
@@ -125,14 +111,14 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'data_dir', _('数据与数据库存储路径'));
-		o.default = '/mnt/sata1-4/nvr-manager/data';
-		o.description = _('安全规范：严禁使用 / 或 /overlay 根分区，请务必指定到本地 SATA/NVMe 数据盘或外部存储');
+		o.placeholder = '/mnt/sda1/nvr-manager/data';
+		o.description = _('安全规范：严禁使用 / 或 /overlay 根分区，请指定到本地 SATA/NVMe 数据盘或外部存储路径。未配置时服务不会启动。');
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'record_dir', _('本地录像切片存储目录'));
-		o.default = '/mnt/sata1-4/recordings';
-		o.description = _('切片视频文件落盘根路径');
-		o.rmempty = false;
+		o.placeholder = '/mnt/sda1/recordings';
+		o.description = _('切片视频文件落盘根路径，建议指定到大容量硬盘挂载点。');
+		o.rmempty = true;
 
 		return m.render();
 	}

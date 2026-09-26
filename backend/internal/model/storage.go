@@ -6,7 +6,7 @@ import "time"
 type StorageType string
 
 const (
-	StorageTypeLocal StorageType = "local" // 本地磁盘 (例如 /mnt/sata1-4)
+	StorageTypeLocal StorageType = "local" // 本地磁盘存储 (例如挂载的数据盘)
 	StorageTypeSMB   StorageType = "smb"   // SMB/CIFS 网络共享 (NAS / Windows共享)
 )
 
@@ -27,7 +27,7 @@ type Storage struct {
 	Type           StorageType   `json:"type" gorm:"size:32;default:'local'"`    // local / smb
 	
 	// 本地路径或挂载目标路径
-	MountPoint     string        `json:"mount_point" gorm:"size:256;not null"`   // 挂载点或本地录像根目录，如 /mnt/sata1-4/nvr 或 /mnt/nvr/storage/nas01
+	MountPoint     string        `json:"mount_point" gorm:"size:256;not null"`   // 挂载点或本地录像根目录，如 /mnt/sda1/recordings 或 /mnt/nvr/storage/nas01
 	
 	// SMB专属配置
 	ServerHost     string        `json:"server_host" gorm:"size:128"`            // SMB服务器IP或主机名 (例如 192.168.1.20)
