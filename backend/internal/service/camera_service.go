@@ -16,7 +16,6 @@ import (
 
 type CameraService struct {
 	db              *gorm.DB
-	hikAdapter      *adapter.HikvisionAdapter
 	discoveryEngine *adapter.DiscoveryEngine
 	
 	// 运行期状态回调函数 (解耦录像引擎与流媒体引擎)
@@ -27,7 +26,6 @@ type CameraService struct {
 func NewCameraService(db *gorm.DB) *CameraService {
 	return &CameraService{
 		db:              db,
-		hikAdapter:      adapter.NewHikvisionAdapter(),
 		discoveryEngine: adapter.NewDiscoveryEngine(),
 	}
 }
@@ -96,9 +94,14 @@ func (s *CameraService) AddCamera(req *model.Camera, rawPassword string) (*model
 		req.PasswordEnc = enc
 	}
 
-	// 自动生成标准海康主/子码流 URL
+	if req.Brand == "" || req.Brand == "auto" {
+		req.Brand = adapter.DetectBrand(req.IP, req.HTTPPort, req.RTSPPort)
+	}
+	adp := adapter.GetAdapter(req.Brand)
+
+	// 自动生成对应品牌规范的主/子码流 URL (若未显式指定)
 	if req.MainStreamURL == "" || req.SubStreamURL == "" {
-		mainURL, subURL := s.hikAdapter.BuildStreamURLs(req, rawPassword)
+		mainURL, subURL := adp.BuildStreamURLs(req, rawPassword)
 		if req.MainStreamURL == "" {
 			req.MainStreamURL = mainURL
 		}
@@ -126,6 +129,9 @@ func (s *CameraService) UpdateCamera(id uint, updateData *model.Camera, rawPassw
 
 	cam.Name = updateData.Name
 	cam.IP = updateData.IP
+	if updateData.Brand != "" {
+		cam.Brand = updateData.Brand
+	}
 	cam.Subnet = updateData.Subnet
 	cam.NetworkInterface = updateData.NetworkInterface
 	cam.RTSPPort = updateData.RTSPPort
@@ -148,15 +154,36 @@ func (s *CameraService) UpdateCamera(id uint, updateData *model.Camera, rawPassw
 		cam.PasswordEnc = enc
 	}
 
-	// 重新生成码流
-	plainPass, _ := utils.DecryptPassword(cam.PasswordEnc)
-	cam.MainStreamURL, cam.SubStreamURL = s.hikAdapter.BuildStreamURLs(&cam, plainPass)
+	// 优先尊重用户在前端输入的自定义或修改后的码流
+	if updateData.MainStreamURL != "" {
+		cam.MainStreamURL = updateData.MainStreamURL
+	}
+	if updateData.SubStreamURL != "" {
+		cam.SubStreamURL = updateData.SubStreamURL
+	}
+
+	// 若未指定码流地址，根据当前品牌适配器重新生成
+	if cam.MainStreamURL == "" || cam.SubStreamURL == "" {
+		plainPass, _ := utils.DecryptPassword(cam.PasswordEnc)
+		adp := adapter.GetAdapter(cam.Brand)
+		mainURL, subURL := adp.BuildStreamURLs(&cam, plainPass)
+		if cam.MainStreamURL == "" {
+			cam.MainStreamURL = mainURL
+		}
+		if cam.SubStreamURL == "" {
+			cam.SubStreamURL = subURL
+		}
+	}
 
 	if err := s.db.Save(&cam).Error; err != nil {
 		return nil, err
 	}
 
-	// 触发一次连接测试
+	if s.onCameraOnline != nil {
+		s.onCameraOnline(&cam)
+	}
+
+	// 触发一次连接测试并刷新流媒体状态
 	go s.TestAndRefreshStatus(cam.ID)
 
 	return &cam, nil
@@ -198,7 +225,11 @@ func (s *CameraService) TestConnection(cam *model.Camera, rawPassword string) (*
 	if rawPassword == "" && cam.PasswordEnc != "" {
 		rawPassword, _ = utils.DecryptPassword(cam.PasswordEnc)
 	}
-	return s.hikAdapter.ConnectTest(cam, rawPassword)
+	if cam.Brand == "" || cam.Brand == "auto" {
+		cam.Brand = adapter.DetectBrand(cam.IP, cam.HTTPPort, cam.RTSPPort)
+	}
+	adp := adapter.GetAdapter(cam.Brand)
+	return adp.ConnectTest(cam, rawPassword)
 }
 
 // TestAndRefreshStatus 测试并刷新数据库中设备状态与元数据
@@ -208,8 +239,13 @@ func (s *CameraService) TestAndRefreshStatus(id uint) (*model.Camera, error) {
 		return nil, err
 	}
 
+	if cam.Brand == "" || cam.Brand == "auto" {
+		cam.Brand = adapter.DetectBrand(cam.IP, cam.HTTPPort, cam.RTSPPort)
+	}
+	adp := adapter.GetAdapter(cam.Brand)
+
 	plainPass, _ := utils.DecryptPassword(cam.PasswordEnc)
-	info, err := s.hikAdapter.ConnectTest(&cam, plainPass)
+	info, err := adp.ConnectTest(&cam, plainPass)
 
 	now := time.Now()
 	if err != nil {
@@ -228,6 +264,9 @@ func (s *CameraService) TestAndRefreshStatus(id uint) (*model.Camera, error) {
 	cam.IsOnline = true
 	cam.LastOnlineTime = &now
 	cam.LastOfflineReason = ""
+	if info.Brand != "" {
+		cam.Brand = info.Brand
+	}
 	if info.Model != "" {
 		cam.Model = info.Model
 	}
@@ -246,11 +285,20 @@ func (s *CameraService) TestAndRefreshStatus(id uint) (*model.Camera, error) {
 	if info.FrameRate > 0 {
 		cam.FrameRate = info.FrameRate
 	}
+	if info.RTSPPort > 0 && info.RTSPPort != cam.RTSPPort {
+		cam.RTSPPort = info.RTSPPort
+	}
+	if cam.MainStreamURL == "" && info.MainStreamURL != "" {
+		cam.MainStreamURL = info.MainStreamURL
+	}
+	if cam.SubStreamURL == "" && info.SubStreamURL != "" {
+		cam.SubStreamURL = info.SubStreamURL
+	}
 
 	s.db.Save(&cam)
 
-	// 若之前离线、现已恢复，且启用了录像，通知恢复录像任务
-	if wasOffline && s.onCameraOnline != nil {
+	// 若之前离线、现已恢复，或检测到配置更新，触发在线与流媒体回调
+	if (wasOffline || info.RTSPPort > 0) && s.onCameraOnline != nil {
 		s.onCameraOnline(&cam)
 	}
 

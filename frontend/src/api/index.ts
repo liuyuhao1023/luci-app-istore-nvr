@@ -21,6 +21,9 @@ export default {
   getCamera(id: number) {
     return api.get(`/cameras/${id}`)
   },
+  refreshCamera(id: number) {
+    return api.post(`/cameras/${id}/refresh`)
+  },
   addCamera(data: any) {
     return api.post('/cameras', data)
   },

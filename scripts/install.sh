@@ -1,86 +1,75 @@
 #!/bin/sh
 # ==============================================================================
-# OpenWrt NVR (NVR 摄像头管理) 一键安装与部署脚本
+# OpenWrt NVR (NVR 摄像头管理) 安装与部署脚本
 # 适用平台: OpenWrt / iStoreOS / ImmortalWrt / 通用 Linux (x86_64 / aarch64)
 # ==============================================================================
 
 set -e
 
-INSTALL_DIR="/mnt/sata1-4/istore-nvr"
-RECORD_DIR="/mnt/sata1-4/recordings"
-
-echo "=========================================================="
-echo "  OpenWrt NVR 摄像头管理系统 - 快速安装与配置向导        "
-echo "=========================================================="
-
-# 1. 检查存储盘安全性 (严禁安装在软路由系统根分区 /overlay 上)
-if [ ! -d "/mnt/sata1-4" ]; then
-    echo "[-] 提示: 未检测到 /mnt/sata1-4 数据盘，请确保指定持久化外部存储盘。"
-    INSTALL_DIR="/opt/istore-nvr"
-    RECORD_DIR="/opt/recordings"
+DATA_BASE_DIR="$1"
+if [ -z "$DATA_BASE_DIR" ]; then
+    echo "使用方法: $0 <外部存储目录>"
+    echo "例如: $0 /mnt/sda1/nvr-manager"
+    exit 1
 fi
 
-echo "[+] 核心程序与数据库安装目录: ${INSTALL_DIR}"
-echo "[+] 本地切片录像存储目录:     ${RECORD_DIR}"
-mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/dist" "${RECORD_DIR}"
+INSTALL_DIR="${DATA_BASE_DIR}/data"
+RECORD_DIR="${DATA_BASE_DIR}/recordings"
 
-# 2. 如果是从 git 仓库本地运行此脚本，同步核心文件
+echo "=========================================================="
+echo "  OpenWrt NVR 摄像头管理系统 - 安装与配置向导            "
+echo "=========================================================="
+
+echo "[+] 核心数据与数据库目录: ${INSTALL_DIR}"
+echo "[+] 本地切片录像存储目录: ${RECORD_DIR}"
+mkdir -p "${INSTALL_DIR}" "${RECORD_DIR}"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# 安装主服务可执行文件到 /usr/bin
 if [ -f "${PROJECT_ROOT}/backend/istore-nvr" ]; then
-    echo "[+] 部署后端主服务二进制文件..."
-    cp -f "${PROJECT_ROOT}/backend/istore-nvr" "${INSTALL_DIR}/istore-nvr"
-    chmod 755 "${INSTALL_DIR}/istore-nvr"
+    echo "[+] 部署后端主服务至 /usr/bin/nvr-manager..."
+    cp -f "${PROJECT_ROOT}/backend/istore-nvr" "/usr/bin/nvr-manager"
+    chmod 755 "/usr/bin/nvr-manager"
 fi
 
+# 安装静态前端至 /usr/share/nvr-manager/dist
 if [ -d "${PROJECT_ROOT}/backend/dist" ]; then
-    echo "[+] 部署 Web 前端静态资源..."
-    cp -rf "${PROJECT_ROOT}/backend/dist/"* "${INSTALL_DIR}/dist/"
+    echo "[+] 部署 Web 前端静态资源至 /usr/share/nvr-manager/dist..."
+    mkdir -p "/usr/share/nvr-manager/dist"
+    cp -rf "${PROJECT_ROOT}/backend/dist/"* "/usr/share/nvr-manager/dist/"
 fi
 
-# 检查或复用现有 mediamtx 网关
-if [ ! -f "${INSTALL_DIR}/mediamtx" ]; then
-    if [ -f "/mnt/sata1-4/istore-nvr.backup/mediamtx" ]; then
-        echo "[+] 复用备用目录中的 mediamtx 流媒体网关..."
-        cp -f "/mnt/sata1-4/istore-nvr.backup/mediamtx" "${INSTALL_DIR}/mediamtx"
-    elif [ -f "${PROJECT_ROOT}/mediamtx" ]; then
-        cp -f "${PROJECT_ROOT}/mediamtx" "${INSTALL_DIR}/mediamtx"
-    fi
+# 安装 mediamtx 至 /usr/bin
+if [ -f "${PROJECT_ROOT}/mediamtx" ]; then
+    echo "[+] 部署流媒体网关至 /usr/bin/mediamtx..."
+    cp -f "${PROJECT_ROOT}/mediamtx" "/usr/bin/mediamtx"
+    chmod 755 "/usr/bin/mediamtx"
 fi
-[ -f "${INSTALL_DIR}/mediamtx" ] && chmod 755 "${INSTALL_DIR}/mediamtx"
 
-# 3. 安装 OpenWrt / LuCI 系统集成文件
-if [ -d "${PROJECT_ROOT}/openwrt/luci-app-istore-nvr/root" ]; then
+# 安装 LuCI 插件
+if [ -d "${PROJECT_ROOT}/openwrt/luci-app-nvr-manager/root" ]; then
     echo "[+] 安装 LuCI 控制面板与系统服务配置..."
-    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-istore-nvr/root/etc/config/"* /etc/config/ 2>/dev/null || true
-    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-istore-nvr/root/etc/init.d/"* /etc/init.d/ 2>/dev/null || true
-    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-istore-nvr/root/usr/share/luci/menu.d/"* /usr/share/luci/menu.d/ 2>/dev/null || true
-    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-istore-nvr/root/usr/share/rpcd/acl.d/"* /usr/share/rpcd/acl.d/ 2>/dev/null || true
-    mkdir -p /www/luci-static/resources/view/istore-nvr
-    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-istore-nvr/root/www/luci-static/resources/view/istore-nvr/"* /www/luci-static/resources/view/istore-nvr/
+    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-nvr-manager/root/etc/config/"* /etc/config/ 2>/dev/null || true
+    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-nvr-manager/root/etc/init.d/"* /etc/init.d/ 2>/dev/null || true
+    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-nvr-manager/root/usr/share/luci/menu.d/"* /usr/share/luci/menu.d/ 2>/dev/null || true
+    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-nvr-manager/root/usr/share/rpcd/acl.d/"* /usr/share/rpcd/acl.d/ 2>/dev/null || true
+    mkdir -p /www/luci-static/resources/view/nvr-manager
+    cp -rf "${PROJECT_ROOT}/openwrt/luci-app-nvr-manager/htdocs/luci-static/resources/view/nvr-manager/"* /www/luci-static/resources/view/nvr-manager/
 fi
 
-chmod 755 /etc/init.d/istore-nvr 2>/dev/null || true
+chmod 755 /etc/init.d/nvr-manager 2>/dev/null || true
 
-# 4. 刷新 LuCI 缓存与权限
-echo "[+] 清理 LuCI 菜单缓存并重载服务..."
-rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache* /usr/lib/lua/luci/controller/*nvr* /usr/lib/lua/luci/model/cbi/*nvr*
+# 配置 UCI
+uci set nvr-manager.config.data_dir="${INSTALL_DIR}"
+uci set nvr-manager.config.record_dir="${RECORD_DIR}"
+uci commit nvr-manager
+
+# 清理 LuCI 缓存
+rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*
 /etc/init.d/rpcd reload 2>/dev/null || true
 
-# 5. 启动服务并设置自启
-echo "[+] 启动 NVR 摄像头管理服务..."
-/etc/init.d/istore-nvr enable
-/etc/init.d/istore-nvr restart
-
-sleep 2
-if pidof istore-nvr >/dev/null; then
-    echo "=========================================================="
-    echo " [✓] 安装部署成功！"
-    echo " [✓] 核心服务 PID: $(pidof istore-nvr)"
-    echo " [✓] LuCI 菜单: 【服务】 -> 【NVR摄像头管理】"
-    echo " [✓] 独立 Web 控制台: http://$(uci -q get network.lan.ipaddr || echo '192.168.1.15'):8080/"
-    echo "=========================================================="
-else
-    echo "[-] 提示: 服务未能正常拉起，请查看系统日志: logread | grep istore-nvr"
-fi
+echo "=========================================================="
+echo " [✓] 安装部署成功！请在 LuCI 中勾选启用服务后启动。"
+echo "=========================================================="

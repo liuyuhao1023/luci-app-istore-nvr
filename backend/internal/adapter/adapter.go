@@ -12,6 +12,7 @@ type DeviceInfo struct {
 	VideoCodec      string `json:"video_codec"`   // H.264, H.265, etc.
 	Resolution      string `json:"resolution"`    // 1920x1080
 	FrameRate       int    `json:"frame_rate"`
+	RTSPPort        int    `json:"rtsp_port,omitempty"` // 动态读取到的真实RTSP端口
 	MainStreamURL   string `json:"main_stream_url"`
 	SubStreamURL    string `json:"sub_stream_url"`
 	IsOnline        bool   `json:"is_online"`
@@ -41,4 +42,18 @@ type CameraAdapter interface {
 
 	// BuildStreamURLs 生成主码流与子码流的规范 RTSP 播放地址
 	BuildStreamURLs(camera *model.Camera, password string) (mainStream, subStream string)
+}
+
+// GetAdapter 根据品牌厂商标识获取对应的驱动适配器
+func GetAdapter(brand string) CameraAdapter {
+	switch brand {
+	case "hikvision":
+		return NewHikvisionAdapter()
+	case "jovision":
+		return NewJovisionAdapter()
+	case "dahua":
+		return NewDahuaAdapter()
+	default:
+		return NewGeneralAdapter()
+	}
 }

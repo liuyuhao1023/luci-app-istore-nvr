@@ -101,6 +101,17 @@ func (h *CameraHandler) UpdateCamera(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "更新成功", "data": cam})
 }
 
+// RefreshCamera 重新从摄像头探测并刷新真实硬件与码流参数
+func (h *CameraHandler) RefreshCamera(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	cam, err := h.camService.TestAndRefreshStatus(uint(id))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "message": err.Error(), "data": cam})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "已从摄像头同步真实硬件与码流参数", "data": cam})
+}
+
 // DeleteCamera 删除摄像头
 func (h *CameraHandler) DeleteCamera(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))

@@ -2,7 +2,7 @@
 set -e
 
 # iStore NVR 标准 IPK 独立打包脚本 (遵循 iStoreOS 官方规范)
-PKG_NAME="luci-app-istore-nvr"
+PKG_NAME="luci-app-nvr-manager"
 PKG_VERSION="1.0.1-1"
 PKG_ARCH="all"
 BUILD_DIR="/tmp/ipk_build"
@@ -18,15 +18,15 @@ mkdir -p "$BUILD_DIR/data/etc/config"
 mkdir -p "$BUILD_DIR/data/etc/init.d"
 mkdir -p "$BUILD_DIR/data/usr/share/luci/menu.d"
 mkdir -p "$BUILD_DIR/data/usr/share/rpcd/acl.d"
-mkdir -p "$BUILD_DIR/data/www/luci-static/resources/view/istore-nvr"
+mkdir -p "$BUILD_DIR/data/www/luci-static/resources/view/nvr-manager"
 
-cp -r openwrt/luci-app-istore-nvr/root/etc/config/* "$BUILD_DIR/data/etc/config/"
-cp -r openwrt/luci-app-istore-nvr/root/etc/init.d/* "$BUILD_DIR/data/etc/init.d/"
-cp -r openwrt/luci-app-istore-nvr/root/usr/share/luci/menu.d/* "$BUILD_DIR/data/usr/share/luci/menu.d/"
-cp -r openwrt/luci-app-istore-nvr/root/usr/share/rpcd/acl.d/* "$BUILD_DIR/data/usr/share/rpcd/acl.d/"
-cp -r openwrt/luci-app-istore-nvr/root/www/luci-static/resources/view/istore-nvr/* "$BUILD_DIR/data/www/luci-static/resources/view/istore-nvr/"
+cp -r openwrt/luci-app-nvr-manager/root/etc/config/* "$BUILD_DIR/data/etc/config/"
+cp -r openwrt/luci-app-nvr-manager/root/etc/init.d/* "$BUILD_DIR/data/etc/init.d/"
+cp -r openwrt/luci-app-nvr-manager/root/usr/share/luci/menu.d/* "$BUILD_DIR/data/usr/share/luci/menu.d/"
+cp -r openwrt/luci-app-nvr-manager/root/usr/share/rpcd/acl.d/* "$BUILD_DIR/data/usr/share/rpcd/acl.d/"
+cp -r openwrt/luci-app-nvr-manager/htdocs/luci-static/resources/view/nvr-manager/* "$BUILD_DIR/data/www/luci-static/resources/view/nvr-manager/"
 
-chmod +x "$BUILD_DIR/data/etc/init.d/istore-nvr"
+chmod 755 "$BUILD_DIR/data/etc/init.d/nvr-manager"
 
 # 2. 生成控制文件 (control)
 cat << EOF > "$BUILD_DIR/control/control"
@@ -39,18 +39,14 @@ Maintainer: liuyuhao1023
 Description: LuCI support for OpenWrt NVR Camera Management System
 EOF
 
-# 3. 生成安装后触发脚本 (postinst - 遵守避坑指南: 显式权限修复与优雅服务重载)
+# 3. 生成安装后触发脚本 (postinst - 遵守 iStoreOS 规范: 权限修复与缓存清理，不默认启动)
 cat << 'EOF' > "$BUILD_DIR/control/postinst"
 #!/bin/sh
-[ -n "${IPKG_INSTROOT}" ] || {
-	chmod 755 /etc/init.d/istore-nvr 2>/dev/null || true
-	chmod 755 /mnt/sata1-4/istore-nvr/istore-nvr 2>/dev/null || true
-	chmod 755 /mnt/sata1-4/istore-nvr/mediamtx 2>/dev/null || true
-	rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache* /usr/lib/lua/luci/controller/*nvr* /usr/lib/lua/luci/model/cbi/*nvr*
+if [ -z "${IPKG_INSTROOT}" ]; then
+	chmod 755 /etc/init.d/nvr-manager 2>/dev/null || true
 	/etc/init.d/rpcd reload 2>/dev/null || true
-	/etc/init.d/istore-nvr enable 2>/dev/null || true
-	/etc/init.d/istore-nvr restart 2>/dev/null || true
-}
+	rm -rf /tmp/luci-indexcache /tmp/luci-modulecache/
+fi
 exit 0
 EOF
 chmod +x "$BUILD_DIR/control/postinst"
@@ -58,15 +54,26 @@ chmod +x "$BUILD_DIR/control/postinst"
 # 4. 生成卸载前脚本 (prerm)
 cat << 'EOF' > "$BUILD_DIR/control/prerm"
 #!/bin/sh
-[ -n "${IPKG_INSTROOT}" ] || {
-	/etc/init.d/istore-nvr stop 2>/dev/null || true
-	/etc/init.d/istore-nvr disable 2>/dev/null || true
-}
+if [ -z "${IPKG_INSTROOT}" ]; then
+	/etc/init.d/nvr-manager stop 2>/dev/null || true
+	/etc/init.d/nvr-manager disable 2>/dev/null || true
+fi
 exit 0
 EOF
 chmod +x "$BUILD_DIR/control/prerm"
 
-# 5. 打包归档
+# 5. 生成卸载后脚本 (postrm)
+cat << 'EOF' > "$BUILD_DIR/control/postrm"
+#!/bin/sh
+if [ -z "${IPKG_INSTROOT}" ]; then
+	/etc/init.d/rpcd reload 2>/dev/null || true
+	rm -rf /tmp/luci-indexcache /tmp/luci-modulecache/
+fi
+exit 0
+EOF
+chmod +x "$BUILD_DIR/control/postrm"
+
+# 6. 打包归档
 echo "2.0" > "$BUILD_DIR/debian-binary"
 tar -czf "$BUILD_DIR/data.tar.gz" -C "$BUILD_DIR/data" .
 tar -czf "$BUILD_DIR/control.tar.gz" -C "$BUILD_DIR/control" .

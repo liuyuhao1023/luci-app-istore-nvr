@@ -53,6 +53,16 @@ type HikStreamingChan struct {
 	} `xml:"Video"`
 }
 
+type HikAdminAccessProtocolListXML struct {
+	XMLName   xml.Name `xml:"AdminAccessProtocolList"`
+	Protocols []struct {
+		ID       int    `xml:"id"`
+		Enabled  bool   `xml:"enabled"`
+		Protocol string `xml:"protocol"`
+		PortNo   int    `xml:"portNo"`
+	} `xml:"AdminAccessProtocol"`
+}
+
 // BuildStreamURLs 生成海康标准主码流与子码流地址
 func (h *HikvisionAdapter) BuildStreamURLs(camera *model.Camera, password string) (string, string) {
 	channel := camera.Channel
@@ -109,42 +119,29 @@ func (h *HikvisionAdapter) ConnectTest(camera *model.Camera, password string) (*
 	timeout := 4 * time.Second
 	dialer := h.getDialer(camera.NetworkInterface, timeout)
 
-	// 1. 测试 RTSP 端口联通性
-	rtspPort := camera.RTSPPort
-	if rtspPort <= 0 {
-		rtspPort = 554
-	}
-	rtspAddr := net.JoinHostPort(camera.IP, strconv.Itoa(rtspPort))
-	rtspConn, err := dialer.Dial("tcp", rtspAddr)
-	if err != nil {
-		return nil, fmt.Errorf("RTSP 端口 (%s) 无法连接: %w，请检查跨网段路由或防火墙设置", rtspAddr, err)
-	}
-	_ = rtspConn.Close()
-
-	// 2. 尝试通过 ISAPI 或 RTSP 握手获取详细信息
+	// 1. 优先通过 ISAPI (HTTP 80) 进行真实设备身份验证与精确参数抓取
+	// HTTP 端口直连具体 IP，物理网关录像机不会劫持其他 IP 的 HTTP 80
 	info, fetchErr := h.FetchDeviceInfo(camera, password)
 	if fetchErr == nil && info != nil {
 		info.IsOnline = true
 		return info, nil
 	}
 
-	// 3. 若 ISAPI 端口未开放或受限，通过原生 RTSP DESCRIBE 握手探针校验
+	// 2. 若 HTTP/ISAPI 探测失败 (例如非海康设备或密码不同)，使用原生 RTSP 探针校验，并强制执行网关防劫持检查
 	rtspInfo, rtspErr := h.probeRTSP(camera, password, dialer)
 	if rtspErr == nil && rtspInfo != nil {
 		rtspInfo.IsOnline = true
 		return rtspInfo, nil
 	}
 
-	// 至少证明网络层端口可达
-	mainStream, subStream := h.BuildStreamURLs(camera, password)
-	return &DeviceInfo{
-		Brand:         "hikvision",
-		MainStreamURL: mainStream,
-		SubStreamURL:  subStream,
-		IsOnline:      true,
-		Resolution:    "1920x1080 (推测)",
-		VideoCodec:    "H.264",
-	}, nil
+	// 3. 严格判定：两种验证均失败，严禁假冒在线！
+	if fetchErr != nil && rtspErr != nil {
+		return nil, fmt.Errorf("设备握手失败 (IP: %s): HTTP(%v), RTSP(%v)", camera.IP, fetchErr, rtspErr)
+	}
+	if fetchErr != nil {
+		return nil, fmt.Errorf("设备握手失败 (IP: %s): %w", camera.IP, fetchErr)
+	}
+	return nil, fmt.Errorf("设备握手失败 (IP: %s): %v", camera.IP, rtspErr)
 }
 
 // FetchDeviceInfo 通过海康 ISAPI 协议获取丰富元数据
@@ -179,6 +176,20 @@ func (h *HikvisionAdapter) FetchDeviceInfo(camera *model.Camera, password string
 		return nil, fmt.Errorf("解析海康 ISAPI XML 失败: %w", err)
 	}
 
+	// 动态探测真实管理端口与 RTSP 端口 (兼容现场多摄像头端口定制化设置如 5552/5553 等)
+	accessURL := fmt.Sprintf("http://%s:%d/ISAPI/Security/adminAccesses", camera.IP, httpPort)
+	if accessResp, accessBody, err := h.doDigestOrBasicRequest(client, "GET", accessURL, camera.Username, password, nil); err == nil && accessResp.StatusCode == http.StatusOK {
+		var accessList HikAdminAccessProtocolListXML
+		if xml.Unmarshal(accessBody, &accessList) == nil {
+			for _, proto := range accessList.Protocols {
+				if strings.EqualFold(proto.Protocol, "RTSP") && proto.PortNo > 0 {
+					camera.RTSPPort = proto.PortNo
+					break
+				}
+			}
+		}
+	}
+
 	mainStream, subStream := h.BuildStreamURLs(camera, password)
 
 	info := &DeviceInfo{
@@ -186,6 +197,7 @@ func (h *HikvisionAdapter) FetchDeviceInfo(camera *model.Camera, password string
 		Model:           devXML.Model,
 		SerialNumber:    devXML.SerialNumber,
 		FirmwareVersion: devXML.FirmwareVersion,
+		RTSPPort:        camera.RTSPPort,
 		MainStreamURL:   mainStream,
 		SubStreamURL:    subStream,
 		IsOnline:        true,
@@ -223,7 +235,7 @@ func (h *HikvisionAdapter) FetchDeviceInfo(camera *model.Camera, password string
 	return info, nil
 }
 
-// probeRTSP 使用原生 RTSP TCP 报文发送 DESCRIBE 请求探测流媒体通道
+// probeRTSP 使用原生 RTSP TCP 报文发送 OPTIONS/DESCRIBE 握手，并严查防劫持
 func (h *HikvisionAdapter) probeRTSP(camera *model.Camera, password string, dialer *net.Dialer) (*DeviceInfo, error) {
 	rtspPort := camera.RTSPPort
 	if rtspPort <= 0 {
@@ -232,27 +244,39 @@ func (h *HikvisionAdapter) probeRTSP(camera *model.Camera, password string, dial
 	addr := net.JoinHostPort(camera.IP, strconv.Itoa(rtspPort))
 	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("RTSP 端口 (%s) 无法连接: %w", addr, err)
 	}
 	defer conn.Close()
 
 	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
 
 	mainStream, subStream := h.BuildStreamURLs(camera, password)
-	// 发送 OPTIONS
-	optionsReq := fmt.Sprintf("OPTIONS %s RTSP/1.0\r\nCSeq: 1\r\nUser-Agent: iStore-NVR\r\n\r\n", mainStream)
-	if _, err := conn.Write([]byte(optionsReq)); err != nil {
+	// 发送 DESCRIBE 请求，强制要求返回认证质询 WWW-Authenticate (包含设备 realm/MAC 特征)
+	describeReq := fmt.Sprintf("DESCRIBE %s RTSP/1.0\r\nCSeq: 1\r\nUser-Agent: iStore-NVR\r\nAccept: application/sdp\r\n\r\n", mainStream)
+	if _, err := conn.Write([]byte(describeReq)); err != nil {
 		return nil, err
 	}
 
 	reader := bufio.NewReader(conn)
-	line, err := reader.ReadString('\n')
+	statusLine, err := reader.ReadString('\n')
 	if err != nil {
 		return nil, err
 	}
 
-	if !strings.HasPrefix(line, "RTSP/1.0 200") && !strings.HasPrefix(line, "RTSP/1.0 401") {
-		return nil, fmt.Errorf("RTSP 握手非预期响应: %s", strings.TrimSpace(line))
+	if !strings.HasPrefix(statusLine, "RTSP/1.0 200") && !strings.HasPrefix(statusLine, "RTSP/1.0 401") && !strings.HasPrefix(statusLine, "RTSP/1.0 451") {
+		return nil, fmt.Errorf("RTSP 握手非预期响应: %s", strings.TrimSpace(statusLine))
+	}
+
+	// 读取响应头
+	for {
+		line, lErr := reader.ReadString('\n')
+		if lErr != nil {
+			break
+		}
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			break
+		}
 	}
 
 	return &DeviceInfo{

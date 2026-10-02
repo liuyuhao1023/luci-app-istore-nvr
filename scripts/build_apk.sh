@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-# OpenWrt / Alpine APK 打包脚本 (遵循 APK 格式标准)
-PKG_NAME="luci-app-istore-nvr"
+# OpenWrt / Alpine APK 打包脚本 (遵循 APK 格式与 iStoreOS 规范)
+PKG_NAME="luci-app-nvr-manager"
 PKG_VERSION="1.0.1-r1"
 BUILD_DIR="/tmp/apk_build"
 OUTPUT_DIR="$(pwd)/bin"
@@ -14,17 +14,17 @@ mkdir -p "$BUILD_DIR/etc/config"
 mkdir -p "$BUILD_DIR/etc/init.d"
 mkdir -p "$BUILD_DIR/usr/share/luci/menu.d"
 mkdir -p "$BUILD_DIR/usr/share/rpcd/acl.d"
-mkdir -p "$BUILD_DIR/www/luci-static/resources/view/istore-nvr"
+mkdir -p "$BUILD_DIR/www/luci-static/resources/view/nvr-manager"
 mkdir -p "$OUTPUT_DIR"
 
 # 1. 拷贝文件
-cp openwrt/luci-app-istore-nvr/root/etc/config/* "$BUILD_DIR/etc/config/"
-cp openwrt/luci-app-istore-nvr/root/etc/init.d/* "$BUILD_DIR/etc/init.d/"
-cp openwrt/luci-app-istore-nvr/root/usr/share/luci/menu.d/* "$BUILD_DIR/usr/share/luci/menu.d/"
-cp openwrt/luci-app-istore-nvr/root/usr/share/rpcd/acl.d/* "$BUILD_DIR/usr/share/rpcd/acl.d/"
-cp openwrt/luci-app-istore-nvr/root/www/luci-static/resources/view/istore-nvr/* "$BUILD_DIR/www/luci-static/resources/view/istore-nvr/"
+cp openwrt/luci-app-nvr-manager/root/etc/config/* "$BUILD_DIR/etc/config/"
+cp openwrt/luci-app-nvr-manager/root/etc/init.d/* "$BUILD_DIR/etc/init.d/"
+cp openwrt/luci-app-nvr-manager/root/usr/share/luci/menu.d/* "$BUILD_DIR/usr/share/luci/menu.d/"
+cp openwrt/luci-app-nvr-manager/root/usr/share/rpcd/acl.d/* "$BUILD_DIR/usr/share/rpcd/acl.d/"
+cp openwrt/luci-app-nvr-manager/htdocs/luci-static/resources/view/nvr-manager/* "$BUILD_DIR/www/luci-static/resources/view/nvr-manager/"
 
-chmod 755 "$BUILD_DIR/etc/init.d/istore-nvr"
+chmod 755 "$BUILD_DIR/etc/init.d/nvr-manager"
 
 # 2. 写入 .PKGINFO 元数据
 cat << EOF > "$BUILD_DIR/.PKGINFO"
@@ -41,13 +41,9 @@ EOF
 # 3. 写入 .post-install 触发脚本
 cat << 'EOF' > "$BUILD_DIR/.post-install"
 #!/bin/sh
-chmod 755 /etc/init.d/istore-nvr 2>/dev/null || true
-chmod 755 /mnt/sata1-4/istore-nvr/istore-nvr 2>/dev/null || true
-chmod 755 /mnt/sata1-4/istore-nvr/mediamtx 2>/dev/null || true
-rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache* /usr/lib/lua/luci/controller/*nvr* /usr/lib/lua/luci/model/cbi/*nvr*
+chmod 755 /etc/init.d/nvr-manager 2>/dev/null || true
+rm -rf /tmp/luci-indexcache /tmp/luci-modulecache/
 /etc/init.d/rpcd reload 2>/dev/null || true
-/etc/init.d/istore-nvr enable 2>/dev/null || true
-/etc/init.d/istore-nvr restart 2>/dev/null || true
 exit 0
 EOF
 chmod +x "$BUILD_DIR/.post-install"
@@ -55,8 +51,8 @@ chmod +x "$BUILD_DIR/.post-install"
 # 4. 写入 .pre-deinstall 卸载触发脚本
 cat << 'EOF' > "$BUILD_DIR/.pre-deinstall"
 #!/bin/sh
-/etc/init.d/istore-nvr stop 2>/dev/null || true
-/etc/init.d/istore-nvr disable 2>/dev/null || true
+/etc/init.d/nvr-manager stop 2>/dev/null || true
+/etc/init.d/nvr-manager disable 2>/dev/null || true
 exit 0
 EOF
 chmod +x "$BUILD_DIR/.pre-deinstall"

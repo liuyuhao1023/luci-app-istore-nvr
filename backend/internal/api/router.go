@@ -38,6 +38,7 @@ func SetupRouter(
 		apiGroup.POST("/cameras", camHandler.AddCamera)
 		apiGroup.GET("/cameras/:id", camHandler.GetCamera)
 		apiGroup.PUT("/cameras/:id", camHandler.UpdateCamera)
+		apiGroup.POST("/cameras/:id/refresh", camHandler.RefreshCamera)
 		apiGroup.DELETE("/cameras/:id", camHandler.DeleteCamera)
 		apiGroup.POST("/cameras/test", camHandler.TestConnection)
 		apiGroup.POST("/cameras/scan", camHandler.ScanDevices)
@@ -70,13 +71,18 @@ func SetupRouter(
 		apiGroup.GET("/system/stats", sysHandler.GetStats)
 	}
 
-	// 托管前端静态资源 (优先检查当前工作目录或可执行文件同级目录下的 dist)
+	// 托管前端静态资源 (依次检查当前工作目录、可执行文件同级目录、/usr/share/nvr-manager/dist)
 	distPath := "./dist"
 	if _, err := os.Stat(distPath); os.IsNotExist(err) {
+		candidates := []string{}
 		if exe, err := os.Executable(); err == nil {
-			cand := filepath.Join(filepath.Dir(exe), "dist")
+			candidates = append(candidates, filepath.Join(filepath.Dir(exe), "dist"))
+		}
+		candidates = append(candidates, "/usr/share/nvr-manager/dist")
+		for _, cand := range candidates {
 			if _, err := os.Stat(cand); err == nil {
 				distPath = cand
+				break
 			}
 		}
 	}

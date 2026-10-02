@@ -18,6 +18,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"istore-nvr/internal/adapter"
 	"istore-nvr/internal/model"
 	"istore-nvr/internal/utils"
 )
@@ -184,12 +185,13 @@ func (e *StreamEngine) RequestStream(cameraID uint, streamType string, clientHos
 	}
 
 	if rtspURL == "" {
-		chanNum := 101
-		if streamType == "sub" {
-			chanNum = 102
+		adp := adapter.GetAdapter(cam.Brand)
+		mainURL, subURL := adp.BuildStreamURLs(&cam, rawPass)
+		if streamType == "main" {
+			rtspURL = mainURL
+		} else {
+			rtspURL = subURL
 		}
-		rtspURL = fmt.Sprintf("rtsp://%s:%s@%s:%d/Streaming/Channels/%d",
-			cam.Username, rawPass, cam.IP, cam.RTSPPort, chanNum)
 	}
 
 	pathName := fmt.Sprintf("cam_%d_%s", cameraID, streamType)
@@ -227,7 +229,7 @@ func (e *StreamEngine) registerPathToMediaMTX(pathName, rtspSource string) error
 	config := MediaMTXPathConfig{
 		Source:         rtspSource,
 		SourceOnDemand: true,
-		RTSPTransport:  "tcp",
+		RTSPTransport:  "automatic",
 	}
 
 	bodyBytes, err := json.Marshal(config)
@@ -248,17 +250,17 @@ func (e *StreamEngine) registerPathToMediaMTX(pathName, rtspSource string) error
 	if resp != nil {
 		respBody, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		// 如果已存在，尝试 patch 更新
+		// 如果已存在，尝试 replace 更新
 		if resp.StatusCode == http.StatusBadRequest && bytes.Contains(respBody, []byte("already")) {
-			patchURL := fmt.Sprintf("http://127.0.0.1:9997/v3/config/paths/patch/%s", pathName)
-			req, reqErr := http.NewRequest(http.MethodPatch, patchURL, bytes.NewReader(bodyBytes))
-			if reqErr == nil {
-				req.Header.Set("Content-Type", "application/json")
-				if pResp, pErr := e.httpClient.Do(req); pErr == nil {
-					_ = pResp.Body.Close()
-					e.registered[pathName] = true
-					return nil
-				}
+			replaceURL := fmt.Sprintf("http://127.0.0.1:9997/v3/config/paths/replace/%s", pathName)
+			repResp, repErr := e.httpClient.Post(replaceURL, "application/json", bytes.NewReader(bodyBytes))
+			if repErr == nil && (repResp.StatusCode == http.StatusOK || repResp.StatusCode == http.StatusCreated) {
+				_ = repResp.Body.Close()
+				e.registered[pathName] = true
+				return nil
+			}
+			if repResp != nil {
+				_ = repResp.Body.Close()
 			}
 		}
 		return fmt.Errorf("API 响应码: %d, 内容: %s", resp.StatusCode, string(respBody))
@@ -278,16 +280,65 @@ func (e *StreamEngine) syncAllCamerasToMediaMTX() {
 		rawPass, _ := utils.DecryptPassword(cam.PasswordEnc)
 		mainURL := cam.MainStreamURL
 		subURL := cam.SubStreamURL
-		if mainURL == "" {
-			mainURL = fmt.Sprintf("rtsp://%s:%s@%s:%d/Streaming/Channels/101",
-				cam.Username, rawPass, cam.IP, cam.RTSPPort)
-		}
-		if subURL == "" {
-			subURL = fmt.Sprintf("rtsp://%s:%s@%s:%d/Streaming/Channels/102",
-				cam.Username, rawPass, cam.IP, cam.RTSPPort)
+		if mainURL == "" || subURL == "" {
+			adp := adapter.GetAdapter(cam.Brand)
+			mURL, sURL := adp.BuildStreamURLs(&cam, rawPass)
+			if mainURL == "" {
+				mainURL = mURL
+			}
+			if subURL == "" {
+				subURL = sURL
+			}
 		}
 
 		_ = e.registerPathToMediaMTX(fmt.Sprintf("cam_%d_main", cam.ID), mainURL)
 		_ = e.registerPathToMediaMTX(fmt.Sprintf("cam_%d_sub", cam.ID), subURL)
+	}
+}
+
+// RegisterCamera 将单台摄像头的流路径动态更新到 MediaMTX
+func (e *StreamEngine) RegisterCamera(cam *model.Camera) {
+	if cam == nil {
+		return
+	}
+	rawPass, _ := utils.DecryptPassword(cam.PasswordEnc)
+	mainURL := cam.MainStreamURL
+	subURL := cam.SubStreamURL
+	if mainURL == "" || subURL == "" {
+		adp := adapter.GetAdapter(cam.Brand)
+		mURL, sURL := adp.BuildStreamURLs(cam, rawPass)
+		if mainURL == "" {
+			mainURL = mURL
+		}
+		if subURL == "" {
+			subURL = sURL
+		}
+	}
+
+	_ = e.registerPathToMediaMTX(fmt.Sprintf("cam_%d_main", cam.ID), mainURL)
+	_ = e.registerPathToMediaMTX(fmt.Sprintf("cam_%d_sub", cam.ID), subURL)
+}
+
+// UnregisterCamera 从 MediaMTX 注销离线或已删除摄像头的流路径
+func (e *StreamEngine) UnregisterCamera(cam *model.Camera) {
+	if cam == nil {
+		return
+	}
+	e.deletePathFromMediaMTX(fmt.Sprintf("cam_%d_main", cam.ID))
+	e.deletePathFromMediaMTX(fmt.Sprintf("cam_%d_sub", cam.ID))
+}
+
+func (e *StreamEngine) deletePathFromMediaMTX(pathName string) {
+	e.mu.Lock()
+	delete(e.registered, pathName)
+	e.mu.Unlock()
+
+	delURL := fmt.Sprintf("http://127.0.0.1:9997/v3/config/paths/delete/%s", pathName)
+	req, err := http.NewRequest(http.MethodDelete, delURL, nil)
+	if err == nil {
+		resp, _ := e.httpClient.Do(req)
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
 	}
 }

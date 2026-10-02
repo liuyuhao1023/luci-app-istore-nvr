@@ -14,7 +14,7 @@ META_AUTHOR:=Gilbert Liu
 META_TAGS:=multimedia tool
 META_LUCI_ENTRY:=/cgi-bin/luci/admin/services/nvr-manager
 META_WEBSITE:=https://github.com/liuyuhao1023/luci-app-istore-nvr
-META_AUTOCONF:=enable
+META_AUTOCONF:=path enable
 META_UCI:=nvr-manager
 
 include ../../meta.mk

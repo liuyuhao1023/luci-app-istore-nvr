@@ -139,32 +139,42 @@ func (d *DiscoveryEngine) ScanSubnets(ctx context.Context, cidrList []string, co
 func (d *DiscoveryEngine) probeSingleTarget(ip string) *DiscoveredDevice {
 	timeout := 1200 * time.Millisecond
 
-	// 1. 优先探测标准 RTSP 554 端口
-	rtspOpen := isTCPPortOpen(ip, 554, timeout)
-	httpOpen := isTCPPortOpen(ip, 80, timeout)
-	hikServiceOpen := isTCPPortOpen(ip, 8000, timeout)
-
-	if !rtspOpen && !httpOpen && !hikServiceOpen {
-		return nil
-	}
-
-	brand := "unknown"
-	method := "port_scan"
-	modelName := ""
-
-	if hikServiceOpen {
-		brand = "hikvision"
-		method = "hik_port_8000"
-	}
-
-	// 2. 发送单播 ONVIF Probe 验证
+	// 1. 发送单播 ONVIF Probe 验证
 	if unicastDev := d.probeUnicastONVIF(ip, timeout); unicastDev != nil {
 		return unicastDev
 	}
 
-	if rtspOpen && brand == "unknown" {
-		brand = "hikvision" // 海康第一阶段适配默认判定
-		modelName = "网络摄像头 (RTSP 554)"
+	// 2. 探测端口是否开放
+	httpOpen := isTCPPortOpen(ip, 80, timeout)
+	rtspOpen := isTCPPortOpen(ip, 554, timeout)
+	hikPortOpen := isTCPPortOpen(ip, 8000, timeout)
+	dahuaPortOpen := isTCPPortOpen(ip, 37777, timeout)
+	jvsPortOpen := isTCPPortOpen(ip, 9101, timeout)
+
+	if !httpOpen && !rtspOpen && !hikPortOpen && !dahuaPortOpen && !jvsPortOpen {
+		return nil
+	}
+
+	// 3. 自动识别设备品牌厂商
+	brand := DetectBrand(ip, 80, 554)
+	if brand == "" {
+		brand = "general"
+	}
+
+	modelName := "网络摄像机"
+	switch brand {
+	case "hikvision":
+		modelName = "海康威视 IPC"
+	case "jovision":
+		modelName = "中维世纪 IPC"
+	case "dahua":
+		modelName = "大华网络摄像机"
+	case "tplink":
+		modelName = "TP-Link IPC"
+	case "xiongmai":
+		modelName = "雄迈 IPC"
+	case "uniview":
+		modelName = "宇视网络摄像机"
 	}
 
 	return &DiscoveredDevice{
@@ -172,7 +182,7 @@ func (d *DiscoveryEngine) probeSingleTarget(ip string) *DiscoveredDevice {
 		Port:        554,
 		Brand:       brand,
 		Model:       modelName,
-		ProbeMethod: method,
+		ProbeMethod: "auto_detect",
 	}
 }
 

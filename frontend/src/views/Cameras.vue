@@ -60,9 +60,17 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="品牌" width="115" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="getBrandTagType(row.brand)">
+              {{ getBrandLabel(row.brand) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column prop="model" label="型号 / 编码" min-width="140">
           <template #default="{ row }">
-            <div>{{ row.model || '海康威视 IPC' }}</div>
+            <div>{{ row.model || '通用摄像机' }}</div>
             <div class="codec-tag">{{ row.video_codec || 'H.264' }} | {{ row.resolution || '1080P' }}</div>
           </template>
         </el-table-column>
@@ -117,11 +125,86 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑摄像头配置' : '添加摄像头 (适配跨网段与多网卡)'"
-      width="580px"
+      width="660px"
+      top="7vh"
     >
+      <!-- 实时真实参数展示面板 (编辑模式或在线设备直接展示) -->
+      <div v-if="isEdit && currentDeviceDetails" class="real-params-box">
+        <div class="box-top">
+          <div class="box-title">
+            <el-icon class="mr-1 text-primary"><Monitor /></el-icon>
+            <span class="title-text">设备物理真实参数 (实机探测)</span>
+            <span class="status-badge" :class="currentDeviceDetails.is_online ? 'online' : 'offline'">
+              <span class="dot"></span>
+              {{ currentDeviceDetails.is_online ? '设备在线' : '设备离线' }}
+            </span>
+          </div>
+          <el-button
+            size="small"
+            type="primary"
+            plain
+            icon="Refresh"
+            :loading="refreshingRealParams"
+            @click="syncRealParameters"
+          >
+            从摄像头重新读取真实参数
+          </el-button>
+        </div>
+
+        <el-descriptions :column="2" border size="small" class="params-table">
+          <el-descriptions-item label="设备型号">
+            <span class="param-val highlight">{{ currentDeviceDetails.model || '通用摄像机' }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="品牌厂商">
+            <span class="param-val">{{ getBrandLabel(currentDeviceDetails.brand) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="硬件序列号" :span="2">
+            <code class="serial-code">{{ currentDeviceDetails.serial_number || '暂未探测到序列号' }}</code>
+          </el-descriptions-item>
+          <el-descriptions-item label="固件版本">
+            <span class="param-val">{{ currentDeviceDetails.firmware_version || '未知' }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="视频规格">
+            <el-tag size="small" :type="currentDeviceDetails.video_codec === 'H.265' ? 'success' : 'info'">
+              {{ currentDeviceDetails.video_codec || 'H.264' }}
+            </el-tag>
+            <span class="res-text ml-1">{{ currentDeviceDetails.resolution || '1080P' }}</span>
+            <span v-if="currentDeviceDetails.frame_rate" class="fps-text"> @ {{ currentDeviceDetails.frame_rate }}fps</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="真实主码流" :span="2">
+            <span class="url-badge" :title="currentDeviceDetails.main_stream_url">
+              {{ currentDeviceDetails.main_stream_url || '未生成' }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="真实子码流" :span="2">
+            <span class="url-badge" :title="currentDeviceDetails.sub_stream_url">
+              {{ currentDeviceDetails.sub_stream_url || '未生成' }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="!currentDeviceDetails.is_online && currentDeviceDetails.last_offline_reason" label="离线原因" :span="2">
+            <span class="offline-reason-text">{{ currentDeviceDetails.last_offline_reason }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <el-divider v-if="isEdit" content-position="left">基础与网络配置</el-divider>
+
       <el-form :model="camForm" label-width="110px">
         <el-form-item label="设备名称" required>
-          <el-input v-model="camForm.name" placeholder="例如: 1楼东门海康枪机" />
+          <el-input v-model="camForm.name" placeholder="例如: 1楼东门监控枪机" />
+        </el-form-item>
+
+        <el-form-item label="品牌厂商">
+          <el-select v-model="camForm.brand" @change="onBrandChange" style="width: 100%">
+            <el-option label="海康威视 (Hikvision)" value="hikvision" />
+            <el-option label="中维世纪 / 云视通 (Jovision)" value="jovision" />
+            <el-option label="大华股份 / 乐橙 (Dahua)" value="dahua" />
+            <el-option label="TP-Link / 水星 / 迅捷" value="tplink" />
+            <el-option label="雄迈技术 (Xiongmai / XM)" value="xiongmai" />
+            <el-option label="宇视科技 (Uniview)" value="uniview" />
+            <el-option label="通用 ONVIF / RTSP" value="general" />
+            <el-option label="自定义完整码流" value="custom" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="摄像头 IP" required>
@@ -131,12 +214,12 @@
         <el-row :gutter="10">
           <el-col :span="12">
             <el-form-item label="RTSP 端口">
-              <el-input-number v-model="camForm.rtsp_port" :min="1" :max="65535" />
+              <el-input-number v-model="camForm.rtsp_port" :min="1" :max="65535" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="HTTP/ONVIF 端口">
-              <el-input-number v-model="camForm.http_port" :min="1" :max="65535" />
+              <el-input-number v-model="camForm.http_port" :min="1" :max="65535" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -158,6 +241,18 @@
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-form-item label="主码流 RTSP">
+          <el-input v-model="camForm.main_stream_url" placeholder="留空则按品牌规范自动生成，如 rtsp://...">
+            <template #append>
+              <el-button @click="resetStreamURLs" title="根据当前品牌和IP重新生成推荐码流地址">重置地址</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="子码流 RTSP">
+          <el-input v-model="camForm.sub_stream_url" placeholder="留空则按品牌规范自动生成" />
+        </el-form-item>
 
         <el-form-item label="出口物理网卡">
           <el-select v-model="camForm.network_interface" placeholder="默认走系统路由表" clearable style="width: 100%">
@@ -237,10 +332,10 @@
         >
           <el-table-column type="selection" width="45" />
           <el-table-column prop="ip" label="IP 地址" width="140" />
-          <el-table-column prop="brand" label="品牌" width="100">
+          <el-table-column prop="brand" label="品牌" width="115" align="center">
             <template #default="{ row }">
-              <el-tag :type="row.brand === 'hikvision' ? 'danger' : 'info'" size="small">
-                {{ row.brand === 'hikvision' ? '海康威视' : '通用ONVIF' }}
+              <el-tag :type="getBrandTagType(row.brand)" size="small">
+                {{ getBrandLabel(row.brand) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -300,6 +395,8 @@ const isEdit = ref(false)
 const currentEditId = ref<number | null>(null)
 const saveLoading = ref(false)
 const testLoading = ref(false)
+const currentDeviceDetails = ref<any>(null)
+const refreshingRealParams = ref(false)
 
 const camForm = ref<any>({
   name: '',
@@ -413,13 +510,17 @@ const confirmBatchStorage = async () => {
 const openAddDialog = () => {
   isEdit.value = false
   currentEditId.value = null
+  currentDeviceDetails.value = null
   camForm.value = {
     name: '',
+    brand: 'hikvision',
     ip: '',
     rtsp_port: 554,
     http_port: 80,
     username: 'admin',
     password: '',
+    main_stream_url: '',
+    sub_stream_url: '',
     network_interface: '',
     subnet: '',
     group: '默认分组',
@@ -429,16 +530,20 @@ const openAddDialog = () => {
   dialogVisible.value = true
 }
 
-const editCamera = (row: any) => {
+const editCamera = async (row: any) => {
   isEdit.value = true
   currentEditId.value = row.id
+  currentDeviceDetails.value = { ...row }
   camForm.value = {
     name: row.name,
+    brand: row.brand || 'hikvision',
     ip: row.ip,
-    rtsp_port: row.rtsp_port,
-    http_port: row.http_port,
+    rtsp_port: row.rtsp_port || 554,
+    http_port: row.http_port || 80,
     username: row.username,
     password: '',
+    main_stream_url: row.main_stream_url || '',
+    sub_stream_url: row.sub_stream_url || '',
     network_interface: row.network_interface,
     subnet: row.subnet,
     group: row.group,
@@ -446,16 +551,164 @@ const editCamera = (row: any) => {
     storage_id: row.storage_id,
   }
   dialogVisible.value = true
+
+  // 异步获取后台存储的最新真实参数详情，确保弹窗展示的数据 100% 准确
+  try {
+    const res: any = await api.getCamera(row.id)
+    if (res.code === 0 && res.data) {
+      currentDeviceDetails.value = res.data
+      camForm.value.brand = res.data.brand || camForm.value.brand
+      camForm.value.rtsp_port = res.data.rtsp_port || camForm.value.rtsp_port
+      camForm.value.http_port = res.data.http_port || camForm.value.http_port
+      camForm.value.name = res.data.name || camForm.value.name
+      camForm.value.ip = res.data.ip || camForm.value.ip
+      camForm.value.username = res.data.username || camForm.value.username
+      camForm.value.main_stream_url = res.data.main_stream_url || camForm.value.main_stream_url
+      camForm.value.sub_stream_url = res.data.sub_stream_url || camForm.value.sub_stream_url
+      camForm.value.network_interface = res.data.network_interface
+      camForm.value.subnet = res.data.subnet
+      camForm.value.group = res.data.group
+      camForm.value.record_enabled = res.data.record_enabled
+      camForm.value.storage_id = res.data.storage_id
+    }
+  } catch (e) {
+    console.error('获取摄像头详情失败:', e)
+  }
+}
+
+const onBrandChange = () => {
+  if (camForm.value.ip) {
+    resetStreamURLs()
+  }
+}
+
+const resetStreamURLs = () => {
+  const ip = camForm.value.ip || '192.168.0.x'
+  const port = camForm.value.rtsp_port || 554
+  const portStr = port !== 554 ? `:${port}` : ''
+  const u = camForm.value.username ? `${camForm.value.username}:${camForm.value.password || 'password'}@` : ''
+  const brand = camForm.value.brand || 'hikvision'
+
+  switch (brand) {
+    case 'jovision':
+      camForm.value.main_stream_url = `rtsp://${u}${ip}${portStr}/live0.264`
+      camForm.value.sub_stream_url = `rtsp://${u}${ip}${portStr}/live1.264`
+      break
+    case 'dahua':
+      camForm.value.main_stream_url = `rtsp://${u}${ip}${portStr}/cam/realmonitor?channel=1&subtype=0`
+      camForm.value.sub_stream_url = `rtsp://${u}${ip}${portStr}/cam/realmonitor?channel=1&subtype=1`
+      break
+    case 'tplink':
+      camForm.value.main_stream_url = `rtsp://${u}${ip}${portStr}/stream1`
+      camForm.value.sub_stream_url = `rtsp://${u}${ip}${portStr}/stream2`
+      break
+    case 'xiongmai':
+      camForm.value.main_stream_url = `rtsp://${u}${ip}${portStr}/live/ch0`
+      camForm.value.sub_stream_url = `rtsp://${u}${ip}${portStr}/live/ch1`
+      break
+    case 'uniview':
+      camForm.value.main_stream_url = `rtsp://${u}${ip}${portStr}/media/video1`
+      camForm.value.sub_stream_url = `rtsp://${u}${ip}${portStr}/media/video2`
+      break
+    case 'hikvision':
+    default:
+      camForm.value.main_stream_url = `rtsp://${u}${ip}${portStr}/Streaming/Channels/101`
+      camForm.value.sub_stream_url = `rtsp://${u}${ip}${portStr}/Streaming/Channels/102`
+      break
+  }
+  ElMessage.success('已根据所选品牌规则重新生成推荐码流地址')
+}
+
+const getBrandLabel = (brand?: string) => {
+  if (!brand) return '通用 RTSP'
+  switch (brand.toLowerCase()) {
+    case 'hikvision': return '海康威视'
+    case 'jovision': return '中维世纪'
+    case 'dahua': return '大华股份'
+    case 'tplink': return 'TP-Link'
+    case 'xiongmai': return '雄迈技术'
+    case 'uniview': return '宇视科技'
+    case 'custom': return '自定义'
+    default: return '通用 RTSP'
+  }
+}
+
+const getBrandTagType = (brand?: string) => {
+  if (!brand) return 'info'
+  switch (brand.toLowerCase()) {
+    case 'hikvision': return 'danger'
+    case 'jovision': return 'primary'
+    case 'dahua': return 'warning'
+    case 'tplink': return 'success'
+    case 'uniview': return 'warning'
+    default: return 'info'
+  }
+}
+
+const syncRealParameters = async () => {
+  if (!currentEditId.value) return
+  refreshingRealParams.value = true
+  try {
+    const res: any = await api.refreshCamera(currentEditId.value)
+    if (res.code === 0 && res.data) {
+      currentDeviceDetails.value = res.data
+      if (res.data.brand) {
+        camForm.value.brand = res.data.brand
+      }
+      if (res.data.main_stream_url) {
+        camForm.value.main_stream_url = res.data.main_stream_url
+      }
+      if (res.data.sub_stream_url) {
+        camForm.value.sub_stream_url = res.data.sub_stream_url
+      }
+      if (res.data.rtsp_port > 0) {
+        camForm.value.rtsp_port = res.data.rtsp_port
+      }
+      if (res.data.http_port > 0) {
+        camForm.value.http_port = res.data.http_port
+      }
+      ElMessage.success('已成功从摄像头同步真实硬件与码流参数！')
+      loadCameras()
+    } else {
+      ElMessage.warning(`同步异常: ${res.message || '摄像头未能响应'}`)
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '同步失败')
+  } finally {
+    refreshingRealParams.value = false
+  }
 }
 
 const testCurrentForm = async () => {
   testLoading.value = true
   try {
     const res: any = await api.testCamera(camForm.value)
-    if (res.code === 0) {
+    if (res.code === 0 && res.data) {
       ElMessage.success(`连通成功！检测到型号: ${res.data?.model || '海康IPC'}, 编码: ${res.data?.video_codec || 'H.264'}`)
+      if (res.data.rtsp_port > 0) {
+        camForm.value.rtsp_port = res.data.rtsp_port
+      }
+      if (res.data.http_port > 0) {
+        camForm.value.http_port = res.data.http_port
+      }
+      if (currentDeviceDetails.value) {
+        currentDeviceDetails.value = {
+          ...currentDeviceDetails.value,
+          ...res.data,
+          is_online: true,
+        }
+      } else {
+        currentDeviceDetails.value = {
+          ...res.data,
+          is_online: true,
+        }
+      }
     } else {
       ElMessage.warning(`连通异常: ${res.message}`)
+      if (currentDeviceDetails.value) {
+        currentDeviceDetails.value.is_online = false
+        currentDeviceDetails.value.last_offline_reason = res.message
+      }
     }
   } catch (e: any) {
     ElMessage.error(e.message)
@@ -653,5 +906,119 @@ onMounted(() => {
 .scan-action {
   display: flex;
   justify-content: center;
+}
+
+/* 真实参数面板样式 */
+.real-params-box {
+  background: #111827;
+  border: 1px solid #1f293d;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.box-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.box-title {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.title-text {
+  margin-right: 8px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+.status-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.status-badge.online {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.status-badge.online .dot {
+  background: #10b981;
+  box-shadow: 0 0 5px #10b981;
+}
+
+.status-badge.offline {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.status-badge.offline .dot {
+  background: #ef4444;
+}
+
+.params-table {
+  background: transparent;
+}
+
+.params-table :deep(.el-descriptions__label) {
+  background: #162030 !important;
+  color: #94a3b8 !important;
+  font-weight: 500;
+}
+
+.params-table :deep(.el-descriptions__content) {
+  background: #0f1622 !important;
+  color: #e2e8f0 !important;
+}
+
+.param-val.highlight {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.serial-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  background: #1e293b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #f1f5f9;
+}
+
+.url-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #60a5fa;
+  word-break: break-all;
+  display: block;
+}
+
+.res-text {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.fps-text {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.offline-reason-text {
+  color: #f87171;
+  font-size: 11px;
 }
 </style>

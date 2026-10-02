@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"istore-nvr/internal/api"
+	"istore-nvr/internal/model"
 	"istore-nvr/internal/repository"
 	"istore-nvr/internal/service"
 )
@@ -46,6 +47,13 @@ func main() {
 	cameraService := service.NewCameraService(db)
 	recordEngine := service.NewRecordEngine(db, storageService, cameraService)
 	streamEngine := service.NewStreamEngine(db)
+
+	// 注册回调：当摄像头上线/流更新时同步到 MediaMTX；当摄像头离线或不可达时自动下线注销流
+	cameraService.SetCallbacks(func(cam *model.Camera) {
+		streamEngine.RegisterCamera(cam)
+	}, func(cam *model.Camera) {
+		streamEngine.UnregisterCamera(cam)
+	})
 
 	// 4. 启动后台摄像头健康心跳协程池 (每 30 秒并发轮询)
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
