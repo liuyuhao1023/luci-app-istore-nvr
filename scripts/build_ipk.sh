@@ -73,13 +73,15 @@ exit 0
 EOF
 chmod +x "$BUILD_DIR/control/postrm"
 
-# 6. 打包归档
+# 6. 打包归档 (严格使用 ./ 相对路径前缀，符合 iStoreOS CI 检验规范)
 echo "2.0" > "$BUILD_DIR/debian-binary"
 tar -czf "$BUILD_DIR/data.tar.gz" -C "$BUILD_DIR/data" .
 tar -czf "$BUILD_DIR/control.tar.gz" -C "$BUILD_DIR/control" .
 
-IPK_FILE="${OUTPUT_DIR}/${PKG_NAME}_${PKG_VERSION}_${PKG_ARCH}.ipk"
-tar -czf "$IPK_FILE" -C "$BUILD_DIR" debian-binary control.tar.gz data.tar.gz
+IPK_FILE="${OUTPUT_DIR}/${PKG_NAME}_1.0.1_${PKG_ARCH}.ipk"
+cd "$BUILD_DIR"
+tar -czf "$IPK_FILE" ./debian-binary ./control.tar.gz ./data.tar.gz
+cd - >/dev/null
 
 rm -rf "$BUILD_DIR"
 echo ">>> 成功生成 IPK 安装包: $IPK_FILE"
