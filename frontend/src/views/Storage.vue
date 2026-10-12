@@ -2,7 +2,7 @@
   <div class="storage-container">
     <div class="action-bar">
       <div class="action-left">
-        <el-button type="primary" icon="Plus" @click="openAddDialog('smb')">添加 SMB/CIFS 网络存储 (NAS)</el-button>
+        <el-button type="primary" icon="Plus" @click="openAddDialog('smb')">添加 SMB 网络存储 (NAS)</el-button>
         <el-button icon="FolderAdd" @click="openAddDialog('local')">添加本地硬盘目录</el-button>
       </div>
       <div class="action-right">
@@ -11,8 +11,8 @@
     </div>
 
     <!-- 存储设备列表卡片 -->
-    <el-row :gutter="16" class="mt-12">
-      <el-col :span="12" v-for="st in storages" :key="st.id">
+    <el-row :gutter="12" class="mt-12">
+      <el-col :xs="24" :sm="24" :md="12" v-for="st in storages" :key="st.id">
         <el-card shadow="never" class="storage-card">
           <template #header>
             <div class="card-header">
@@ -20,7 +20,7 @@
                 <el-icon :size="20" :color="st.type === 'smb' ? '#3b82f6' : '#f59e0b'"><Coin /></el-icon>
                 <span class="st-name">{{ st.name }}</span>
                 <el-tag size="small" :type="st.type === 'smb' ? 'primary' : 'warning'">
-                  {{ st.type === 'smb' ? 'SMB 网络共享 (NAS)' : '本地磁盘' }}
+                  {{ st.type === 'smb' ? 'SMB 共享 (NAS)' : '本地磁盘' }}
                 </el-tag>
               </div>
 
@@ -104,7 +104,7 @@
       :title="isEdit ? '编辑存储配置' : (formType === 'smb' ? '添加 SMB/CIFS 网络存储 (NAS)' : '添加本地存储目录')"
       width="540px"
     >
-      <el-form :model="storageForm" label-width="110px">
+      <el-form :model="storageForm" label-width="105px">
         <el-form-item label="存储名称" required>
           <el-input v-model="storageForm.name" placeholder="例如: 威联通NAS主存储 / 本地SATA盘" />
         </el-form-item>
@@ -120,12 +120,12 @@
           </el-form-item>
 
           <el-row :gutter="10">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="SMB 账号">
                 <el-input v-model="storageForm.username" placeholder="录像专用共享账号" />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="SMB 密码">
                 <el-input
                   v-model="storageForm.password"
@@ -160,12 +160,12 @@
         <el-divider content-position="left">保留与清理策略</el-divider>
 
         <el-row :gutter="10">
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="空间告警(%)">
               <el-input-number v-model="storageForm.alert_threshold_percent" :min="50" :max="99" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="自动清理">
               <el-switch v-model="storageForm.auto_clean_enabled" active-text="启用" inactive-text="关闭" />
             </el-form-item>
@@ -343,23 +343,43 @@ onMounted(() => {
   background-color: var(--panel-bg);
   padding: 10px 16px;
   border-radius: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-left :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.mt-12 {
+  margin-top: 12px;
 }
 
 .storage-card {
   border-radius: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .st-title-group {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .st-name {
@@ -376,17 +396,19 @@ onMounted(() => {
 .path-info {
   font-size: 12px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .path-info .label {
   color: #94a3b8;
   width: 70px;
+  flex-shrink: 0;
 }
 
 .val-mono {
   font-family: monospace;
   color: #60a5fa;
+  word-break: break-all;
 }
 
 .usage-section {
@@ -402,11 +424,14 @@ onMounted(() => {
   font-size: 12px;
   color: #cbd5e1;
   margin-bottom: 6px;
+  gap: 8px;
 }
 
 .meta-row {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 12px;
   color: #94a3b8;
   border-top: 1px solid #1e293b;
@@ -425,9 +450,16 @@ onMounted(() => {
 .card-footer {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   border-top: 1px solid #1e293b;
   margin-top: 12px;
   padding-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .action-bar {
+    padding: 10px 12px;
+  }
 }
 </style>

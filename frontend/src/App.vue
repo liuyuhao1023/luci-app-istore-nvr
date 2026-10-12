@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <el-header height="56px" class="header-bar">
       <div class="header-left">
-        <el-icon :size="24" color="#3b82f6"><VideoCameraFilled /></el-icon>
+        <el-icon :size="22" color="#3b82f6"><VideoCameraFilled /></el-icon>
         <span class="logo-title">NVR 摄像头管理系统</span>
         <el-tag type="info" size="small" class="node-badge">软路由节点: {{ hostNode }}</el-tag>
       </div>
@@ -16,26 +16,31 @@
             v-model="globalRecord"
             active-color="#ef4444"
             inactive-color="#475569"
-            active-text="已开启"
-            inactive-text="已关闭"
+            active-text="录像开"
+            inactive-text="录像关"
+            inline-prompt
             :loading="recordSwitchLoading"
             @change="handleGlobalRecordToggle"
           />
         </div>
 
-        <el-divider direction="vertical" />
+        <el-divider direction="vertical" class="header-divider" />
         <div class="status-summary">
           <span class="rec-badge" v-if="globalRecord">
             <span class="rec-dot"></span>
-            REC 录像服务正常
+            <span class="rec-text-full">REC 录像服务正常</span>
+            <span class="rec-text-short">REC</span>
           </span>
-          <el-tag v-else type="warning" size="small">录像已全局暂停</el-tag>
+          <el-tag v-else type="warning" size="small">
+            <span class="rec-text-full">录像已全局暂停</span>
+            <span class="rec-text-short">暂停</span>
+          </el-tag>
         </div>
       </div>
     </el-header>
 
-    <el-container>
-      <!-- 左侧主菜单 -->
+    <el-container class="body-container">
+      <!-- 左侧主菜单 (桌面端显示) -->
       <el-aside width="220px" class="side-nav">
         <el-menu :default-active="$route.path" router class="nvr-menu">
           <el-menu-item-group title="监控中心">
@@ -74,6 +79,30 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <!-- 移动端底部快捷导航栏 (<= 768px 显示) -->
+    <nav class="mobile-bottom-nav">
+      <router-link to="/" class="mobile-nav-item" :class="{ active: $route.path === '/' }">
+        <el-icon :size="20"><DataBoard /></el-icon>
+        <span>总览</span>
+      </router-link>
+      <router-link to="/live" class="mobile-nav-item" :class="{ active: $route.path === '/live' }">
+        <el-icon :size="20"><VideoCamera /></el-icon>
+        <span>实时监控</span>
+      </router-link>
+      <router-link to="/cameras" class="mobile-nav-item" :class="{ active: $route.path === '/cameras' }">
+        <el-icon :size="20"><Connection /></el-icon>
+        <span>摄像头</span>
+      </router-link>
+      <router-link to="/playback" class="mobile-nav-item" :class="{ active: $route.path === '/playback' }">
+        <el-icon :size="20"><Film /></el-icon>
+        <span>录像回放</span>
+      </router-link>
+      <router-link to="/storage" class="mobile-nav-item" :class="{ active: $route.path === '/storage' }">
+        <el-icon :size="20"><Coin /></el-icon>
+        <span>存储设置</span>
+      </router-link>
+    </nav>
   </el-container>
 </template>
 
@@ -132,6 +161,8 @@ onMounted(() => {
 .app-layout {
   min-height: 100vh;
   background-color: var(--bg-color);
+  display: flex;
+  flex-direction: column;
 }
 
 .header-bar {
@@ -140,12 +171,14 @@ onMounted(() => {
   align-items: center;
   padding: 0 20px;
   background-color: var(--panel-bg);
+  flex-shrink: 0;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .logo-title {
@@ -153,6 +186,9 @@ onMounted(() => {
   font-weight: bold;
   letter-spacing: 0.5px;
   color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .node-badge {
@@ -164,7 +200,8 @@ onMounted(() => {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  flex-shrink: 0;
 }
 
 .global-record-control {
@@ -178,6 +215,15 @@ onMounted(() => {
   color: #cbd5e1;
 }
 
+.rec-text-short {
+  display: none;
+}
+
+.body-container {
+  flex: 1;
+  min-height: 0;
+}
+
 .side-nav {
   background-color: #111827;
   border-right: 1px solid var(--border-color);
@@ -189,4 +235,80 @@ onMounted(() => {
   overflow-y: auto;
   height: calc(100vh - 56px);
 }
+
+/* 移动端底部导航默认隐藏 */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .header-bar {
+    height: 48px !important;
+    padding: 0 12px;
+  }
+
+  .logo-title {
+    font-size: 14px;
+  }
+
+  .node-badge,
+  .switch-label,
+  .header-divider,
+  .rec-text-full {
+    display: none !important;
+  }
+
+  .rec-text-short {
+    display: inline;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .side-nav {
+    display: none !important;
+  }
+
+  .main-content {
+    padding: 10px 10px 70px 10px;
+    height: calc(100vh - 48px);
+  }
+
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 58px;
+    background-color: #111827;
+    border-top: 1px solid var(--border-color);
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.4);
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 11px;
+    height: 100%;
+    transition: color 0.15s, background-color 0.15s;
+  }
+
+  .mobile-nav-item.active {
+    color: #3b82f6;
+    font-weight: 600;
+  }
+}
 </style>
+

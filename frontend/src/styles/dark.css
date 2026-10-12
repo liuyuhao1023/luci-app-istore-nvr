@@ -96,3 +96,63 @@ body {
   50% { transform: scale(1.3); opacity: 1; }
   100% { transform: scale(0.9); opacity: 0.8; }
 }
+
+/* ── 移动端全局响应式适配 (<= 768px) ── */
+@media (max-width: 768px) {
+  .el-dialog {
+    width: 94vw !important;
+    max-width: 94vw !important;
+    margin: 3vh auto !important;
+  }
+
+  .el-dialog__header {
+    padding: 12px 14px !important;
+  }
+
+  .el-dialog__body {
+    padding: 12px 14px !important;
+    max-height: 74vh;
+    overflow-y: auto;
+  }
+
+  .el-dialog__footer {
+    padding: 10px 14px !important;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .el-dialog__footer .el-button + .el-button {
+    margin-left: 0 !important;
+  }
+
+  .el-message-box {
+    width: 90vw !important;
+    max-width: 360px !important;
+  }
+
+  .el-date-range-picker {
+    max-width: 96vw !important;
+    overflow-x: auto !important;
+  }
+
+  .el-date-range-picker .el-picker-panel__body {
+    min-width: 280px !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .el-date-range-picker__content {
+    width: 100% !important;
+  }
+
+  .el-card__header {
+    padding: 12px 14px !important;
+  }
+
+  .el-card__body {
+    padding: 12px 14px !important;
+  }
+}
+

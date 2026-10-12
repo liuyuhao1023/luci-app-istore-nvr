@@ -3,12 +3,12 @@
     <!-- 顶部操作栏 -->
     <div class="action-bar">
       <div class="action-left">
-        <el-button type="primary" icon="Plus" @click="openAddDialog">手动添加摄像头</el-button>
-        <el-button type="success" icon="Search" @click="openScanDialog">跨网段自动发现与扫描</el-button>
-        <el-divider direction="vertical" />
-        <el-button :disabled="selectedIds.length === 0" @click="handleBatchRecord(true)">批量开启录像</el-button>
-        <el-button :disabled="selectedIds.length === 0" @click="handleBatchRecord(false)">批量停止录像</el-button>
-        <el-button :disabled="selectedIds.length === 0" @click="openBatchStorageDialog">批量修改存储位置</el-button>
+        <el-button type="primary" icon="Plus" @click="openAddDialog">添加摄像头</el-button>
+        <el-button type="success" icon="Search" @click="openScanDialog">跨网段扫描</el-button>
+        <el-divider direction="vertical" class="action-divider" />
+        <el-button :disabled="selectedIds.length === 0" @click="handleBatchRecord(true)">批量录像</el-button>
+        <el-button :disabled="selectedIds.length === 0" @click="handleBatchRecord(false)">批量停录</el-button>
+        <el-button :disabled="selectedIds.length === 0" @click="openBatchStorageDialog">批量改存储</el-button>
       </div>
 
       <div class="action-right">
@@ -17,15 +17,15 @@
           placeholder="搜索名称 / IP / 型号"
           prefix-icon="Search"
           clearable
-          style="width: 240px"
+          class="search-input"
           @input="loadCameras"
         />
         <el-button icon="Refresh" circle @click="loadCameras" />
       </div>
     </div>
 
-    <!-- 摄像头列表表格 -->
-    <el-card shadow="never" class="mt-12 table-card">
+    <!-- 桌面端：摄像头列表表格 -->
+    <el-card v-if="!isMobile" shadow="never" class="mt-12 table-card">
       <el-table
         :data="cameras"
         v-loading="loading"
@@ -121,12 +121,93 @@
       </el-table>
     </el-card>
 
+    <!-- 移动端：摄像头卡片列表 (<= 768px) -->
+    <div v-else class="mobile-cam-list mt-12" v-loading="loading">
+      <div class="mobile-select-bar" v-if="cameras.length > 0">
+        <el-checkbox
+          :model-value="selectedIds.length === cameras.length && cameras.length > 0"
+          :indeterminate="selectedIds.length > 0 && selectedIds.length < cameras.length"
+          @change="toggleSelectAllMobile"
+        >
+          全选 ({{ selectedIds.length }}/{{ cameras.length }})
+        </el-checkbox>
+      </div>
+
+      <div
+        v-for="row in cameras"
+        :key="row.id"
+        class="mobile-cam-card"
+        :class="{ selected: selectedIds.includes(row.id) }"
+      >
+        <div class="m-card-header">
+          <div class="m-header-left" @click="toggleMobileSelect(row.id)">
+            <el-checkbox
+              :model-value="selectedIds.includes(row.id)"
+              @change="() => toggleMobileSelect(row.id)"
+              @click.stop
+            />
+            <span class="status-dot" :class="row.is_online ? 'online' : 'offline'"></span>
+            <span class="cam-name">{{ row.name }}</span>
+          </div>
+          <div class="m-header-right">
+            <el-tag size="small" :type="getBrandTagType(row.brand)">
+              {{ getBrandLabel(row.brand) }}
+            </el-tag>
+            <span v-if="row.is_recording" class="rec-badge">
+              <span class="rec-dot"></span> REC
+            </span>
+          </div>
+        </div>
+
+        <div class="m-card-body">
+          <div class="m-info-row">
+            <span class="m-label">地址：</span>
+            <span class="cam-ip">{{ row.ip }}:{{ row.rtsp_port }}</span>
+            <span class="codec-tag ml-auto">{{ row.video_codec || 'H.264' }} · {{ row.resolution || '1080P' }}</span>
+          </div>
+          <div class="m-info-row">
+            <span class="m-label">型号：</span>
+            <span class="m-val">{{ row.model || '通用摄像机' }}</span>
+            <el-tag size="small" :type="getStorageTagType(row.storage_id)" class="ml-auto">
+              {{ getStorageName(row.storage_id) }}
+            </el-tag>
+          </div>
+        </div>
+
+        <div class="m-card-footer">
+          <div class="m-rec-switch">
+            <span>独立录像：</span>
+            <el-switch
+              v-model="row.record_enabled"
+              size="small"
+              active-color="#ef4444"
+              inactive-color="#475569"
+              @change="(val: boolean) => toggleRecord(row, val)"
+            />
+          </div>
+          <div class="m-actions">
+            <el-button size="small" link type="primary" @click="testCamera(row)">测试</el-button>
+            <el-button size="small" link type="primary" @click="editCamera(row)">编辑</el-button>
+            <el-popconfirm title="确定删除该摄像头吗？" @confirm="deleteCamera(row.id)">
+              <template #reference>
+                <el-button size="small" link type="danger">删除</el-button>
+              </template>
+            </el-popconfirm>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="cameras.length === 0" class="mobile-empty">
+        暂无摄像头设备，请点击上方按钮添加或扫描
+      </div>
+    </div>
+
     <!-- 添加 / 编辑摄像头对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑摄像头配置' : '添加摄像头 (适配跨网段与多网卡)'"
       width="660px"
-      top="7vh"
+      top="5vh"
     >
       <!-- 实时真实参数展示面板 (编辑模式或在线设备直接展示) -->
       <div v-if="isEdit && currentDeviceDetails" class="real-params-box">
@@ -147,18 +228,18 @@
             :loading="refreshingRealParams"
             @click="syncRealParameters"
           >
-            从摄像头重新读取真实参数
+            重新读取真实参数
           </el-button>
         </div>
 
-        <el-descriptions :column="2" border size="small" class="params-table">
+        <el-descriptions :column="isMobile ? 1 : 2" border size="small" class="params-table">
           <el-descriptions-item label="设备型号">
             <span class="param-val highlight">{{ currentDeviceDetails.model || '通用摄像机' }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="品牌厂商">
             <span class="param-val">{{ getBrandLabel(currentDeviceDetails.brand) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="硬件序列号" :span="2">
+          <el-descriptions-item label="硬件序列号" :span="isMobile ? 1 : 2">
             <code class="serial-code">{{ currentDeviceDetails.serial_number || '暂未探测到序列号' }}</code>
           </el-descriptions-item>
           <el-descriptions-item label="固件版本">
@@ -171,17 +252,17 @@
             <span class="res-text ml-1">{{ currentDeviceDetails.resolution || '1080P' }}</span>
             <span v-if="currentDeviceDetails.frame_rate" class="fps-text"> @ {{ currentDeviceDetails.frame_rate }}fps</span>
           </el-descriptions-item>
-          <el-descriptions-item label="真实主码流" :span="2">
+          <el-descriptions-item label="真实主码流" :span="isMobile ? 1 : 2">
             <span class="url-badge" :title="currentDeviceDetails.main_stream_url">
               {{ currentDeviceDetails.main_stream_url || '未生成' }}
             </span>
           </el-descriptions-item>
-          <el-descriptions-item label="真实子码流" :span="2">
+          <el-descriptions-item label="真实子码流" :span="isMobile ? 1 : 2">
             <span class="url-badge" :title="currentDeviceDetails.sub_stream_url">
               {{ currentDeviceDetails.sub_stream_url || '未生成' }}
             </span>
           </el-descriptions-item>
-          <el-descriptions-item v-if="!currentDeviceDetails.is_online && currentDeviceDetails.last_offline_reason" label="离线原因" :span="2">
+          <el-descriptions-item v-if="!currentDeviceDetails.is_online && currentDeviceDetails.last_offline_reason" label="离线原因" :span="isMobile ? 1 : 2">
             <span class="offline-reason-text">{{ currentDeviceDetails.last_offline_reason }}</span>
           </el-descriptions-item>
         </el-descriptions>
@@ -189,7 +270,7 @@
 
       <el-divider v-if="isEdit" content-position="left">基础与网络配置</el-divider>
 
-      <el-form :model="camForm" label-width="110px">
+      <el-form :model="camForm" :label-width="isMobile ? 'auto' : '110px'" :label-position="isMobile ? 'top' : 'right'">
         <el-form-item label="设备名称" required>
           <el-input v-model="camForm.name" placeholder="例如: 1楼东门监控枪机" />
         </el-form-item>
@@ -212,12 +293,12 @@
         </el-form-item>
 
         <el-row :gutter="10">
-          <el-col :span="12">
+          <el-col :xs="12" :sm="12">
             <el-form-item label="RTSP 端口">
               <el-input-number v-model="camForm.rtsp_port" :min="1" :max="65535" style="width: 100%" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="12" :sm="12">
             <el-form-item label="HTTP/ONVIF 端口">
               <el-input-number v-model="camForm.http_port" :min="1" :max="65535" style="width: 100%" />
             </el-form-item>
@@ -225,12 +306,12 @@
         </el-row>
 
         <el-row :gutter="10">
-          <el-col :span="12">
+          <el-col :xs="12" :sm="12">
             <el-form-item label="访问账号">
               <el-input v-model="camForm.username" placeholder="默认 admin" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="12" :sm="12">
             <el-form-item label="访问密码">
               <el-input
                 v-model="camForm.password"
@@ -379,7 +460,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
 
@@ -388,6 +469,10 @@ const storages = ref<any[]>([])
 const loading = ref(false)
 const searchKeyword = ref('')
 const selectedIds = ref<number[]>([])
+const isMobile = ref(window.innerWidth <= 768)
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 // 对话框表单
 const dialogVisible = ref(false)
@@ -465,6 +550,23 @@ const getStorageTagType = (id: number) => {
 
 const handleSelectionChange = (selection: any[]) => {
   selectedIds.value = selection.map((item) => item.id)
+}
+
+const toggleMobileSelect = (id: number) => {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedIds.value.push(id)
+  } else {
+    selectedIds.value.splice(idx, 1)
+  }
+}
+
+const toggleSelectAllMobile = (val: any) => {
+  if (val) {
+    selectedIds.value = cameras.value.map((c) => c.id)
+  } else {
+    selectedIds.value = []
+  }
 }
 
 const toggleRecord = async (row: any, val: boolean) => {
@@ -825,8 +927,13 @@ const importDiscovered = async () => {
 }
 
 onMounted(() => {
+  window.addEventListener('resize', updateIsMobile)
   loadCameras()
   loadStorages()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIsMobile)
 })
 </script>
 
@@ -838,18 +945,37 @@ onMounted(() => {
   background-color: var(--panel-bg);
   padding: 10px 16px;
   border-radius: 6px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .action-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-left :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .action-right {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.search-input {
+  width: 240px;
+}
+
+.mt-12 {
+  margin-top: 12px;
+}
+
+.ml-auto {
+  margin-left: auto;
 }
 
 .table-card {
@@ -861,6 +987,7 @@ onMounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .status-dot.online {
@@ -922,6 +1049,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .box-title {
@@ -930,10 +1059,12 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 600;
   color: #e2e8f0;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .title-text {
-  margin-right: 8px;
+  margin-right: 4px;
 }
 
 .status-badge {
@@ -997,6 +1128,7 @@ onMounted(() => {
   padding: 2px 6px;
   border-radius: 4px;
   color: #f1f5f9;
+  word-break: break-all;
 }
 
 .url-badge {
@@ -1021,4 +1153,144 @@ onMounted(() => {
   color: #f87171;
   font-size: 11px;
 }
+
+/* ── 移动端卡片列表与响应式 ── */
+.mobile-cam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-select-bar {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-cam-card {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.mobile-cam-card.selected {
+  border-color: #3b82f6;
+}
+
+.m-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.m-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.m-header-left .cam-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.m-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.m-card-body {
+  background-color: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.m-info-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.m-label {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.m-val {
+  color: #cbd5e1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+  border-top: 1px solid #1e293b;
+}
+
+.m-rec-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.m-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: #64748b;
+  font-size: 13px;
+  background-color: var(--panel-bg);
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .action-bar {
+    padding: 10px 12px;
+  }
+
+  .action-divider {
+    display: none;
+  }
+
+  .action-right {
+    width: 100%;
+  }
+
+  .search-input {
+    flex: 1;
+    width: auto;
+  }
+}
 </style>
+

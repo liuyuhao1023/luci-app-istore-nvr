@@ -2,37 +2,41 @@
   <div class="playback-container">
     <div class="playback-toolbar">
       <div class="filter-group">
-        <span class="filter-label">选择摄像头：</span>
-        <el-select v-model="selectedCamId" placeholder="选择摄像头" style="width: 200px" @change="queryRecords">
-          <el-option
-            v-for="cam in cameras"
-            :key="cam.id"
-            :label="`${cam.name} (${cam.ip})`"
-            :value="cam.id"
+        <div class="filter-item">
+          <span class="filter-label">选择摄像头：</span>
+          <el-select v-model="selectedCamId" placeholder="选择摄像头" class="cam-select" @change="queryRecords">
+            <el-option
+              v-for="cam in cameras"
+              :key="cam.id"
+              :label="`${cam.name} (${cam.ip})`"
+              :value="cam.id"
+            />
+          </el-select>
+        </div>
+
+        <div class="filter-item">
+          <span class="filter-label">时间范围：</span>
+          <el-date-picker
+            v-model="dateRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DDTHH:mm:ssZ"
+            class="date-picker"
+            @change="queryRecords"
           />
-        </el-select>
+        </div>
 
-        <span class="filter-label ml-16">选择日期时间范围：</span>
-        <el-date-picker
-          v-model="dateRange"
-          type="datetimerange"
-          range-separator="至"
-          start-placeholder="开始时间"
-          end-placeholder="结束时间"
-          value-format="YYYY-MM-DDTHH:mm:ssZ"
-          style="width: 360px"
-          @change="queryRecords"
-        />
-
-        <el-button type="primary" icon="Search" class="ml-16" @click="queryRecords" :loading="loading">
+        <el-button type="primary" icon="Search" class="search-btn" @click="queryRecords" :loading="loading">
           检索录像
         </el-button>
       </div>
     </div>
 
-    <el-row :gutter="16" class="mt-12">
+    <el-row :gutter="12" class="mt-12">
       <!-- 播放视窗与时间轴 -->
-      <el-col :span="16">
+      <el-col :xs="24" :sm="24" :md="16" class="pb-col">
         <el-card shadow="never" class="player-card">
           <div class="player-screen">
             <div v-if="currentPlayRecord" class="playing-state">
@@ -44,7 +48,7 @@
             </div>
             <div v-else class="empty-player">
               <el-icon :size="48" color="#334155"><Film /></el-icon>
-              <span>请在右侧列表中点击选择要回放的录像片段</span>
+              <span>请在列表中点击选择要回放的录像片段</span>
             </div>
           </div>
 
@@ -52,7 +56,7 @@
           <div class="timeline-bar">
             <div class="timeline-header">
               <span>时间轴进度</span>
-              <span class="timeline-scale">00:00 ------------------ 12:00 ------------------ 24:00</span>
+              <span class="timeline-scale">00:00 ------ 12:00 ------ 24:00</span>
             </div>
             <div class="timeline-track">
               <div
@@ -68,7 +72,7 @@
       </el-col>
 
       <!-- 录像片段列表 -->
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8" class="pb-col">
         <el-card shadow="never">
           <template #header>
             <div class="card-header-flex">
@@ -188,20 +192,36 @@ onMounted(() => {
 .filter-group {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
 }
 
 .filter-label {
   font-size: 13px;
   color: #94a3b8;
   margin-right: 8px;
+  white-space: nowrap;
 }
 
-.ml-16 {
-  margin-left: 16px;
+.cam-select {
+  width: 200px;
+}
+
+.date-picker {
+  width: 340px;
 }
 
 .mt-12 {
   margin-top: 12px;
+}
+
+.pb-col {
+  margin-bottom: 12px;
 }
 
 .player-card {
@@ -215,6 +235,9 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   border-radius: 4px;
+  padding: 12px;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .playing-state {
@@ -223,12 +246,14 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   color: #cbd5e1;
+  max-width: 100%;
 }
 
 .play-filename {
   font-family: monospace;
   font-size: 12px;
   color: #60a5fa;
+  word-break: break-all;
 }
 
 .play-meta {
@@ -259,6 +284,13 @@ onMounted(() => {
   font-size: 11px;
   color: #64748b;
   margin-bottom: 8px;
+  gap: 8px;
+}
+
+.timeline-scale {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .timeline-track {
@@ -336,5 +368,39 @@ onMounted(() => {
   padding: 60px 0;
   color: #475569;
   font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .playback-toolbar {
+    padding: 10px 12px;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .filter-item {
+    width: 100%;
+  }
+
+  .cam-select,
+  .date-picker {
+    flex: 1;
+    width: 100% !important;
+  }
+
+  .search-btn {
+    width: 100%;
+  }
+
+  .player-screen {
+    height: 210px;
+  }
+
+  .records-scroll-list {
+    height: 300px;
+  }
 }
 </style>

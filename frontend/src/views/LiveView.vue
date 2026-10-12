@@ -4,7 +4,7 @@
     <div class="live-toolbar">
       <div class="toolbar-left">
         <span class="toolbar-title">实时视频监控中心</span>
-        <el-tag size="small" type="success">已连接 {{ cameras.length }} 路摄像头</el-tag>
+        <el-tag size="small" type="success">已连接 {{ cameras.length }} 路</el-tag>
       </div>
 
       <div class="toolbar-right">
@@ -18,29 +18,40 @@
           <el-radio-button :value="36">36</el-radio-button>
         </el-radio-group>
 
-        <el-divider direction="vertical" />
-        <el-button size="small" type="primary" plain @click="autoArrangeSlots">
-          <el-icon><Grid /></el-icon>
-          一键顺序排列
-        </el-button>
-        <el-button size="small" @click="refreshAllStreams">
-          <el-icon><Refresh /></el-icon>
-          刷新全部
-        </el-button>
-        <el-button size="small" @click="toggleFullScreen">
-          <el-icon><FullScreen /></el-icon>
-          全屏
-        </el-button>
+        <el-divider direction="vertical" class="toolbar-divider" />
+        <div class="toolbar-actions">
+          <el-button size="small" type="primary" plain @click="autoArrangeSlots">
+            <el-icon><Grid /></el-icon>
+            <span class="btn-text-desktop">一键顺序排列</span>
+            <span class="btn-text-mobile">排布</span>
+          </el-button>
+          <el-button size="small" @click="refreshAllStreams">
+            <el-icon><Refresh /></el-icon>
+            <span class="btn-text-desktop">刷新全部</span>
+            <span class="btn-text-mobile">刷新</span>
+          </el-button>
+          <el-button size="small" @click="toggleFullScreen">
+            <el-icon><FullScreen /></el-icon>
+            <span>全屏</span>
+          </el-button>
+        </div>
       </div>
     </div>
 
     <!-- 主展示区 -->
     <div class="live-body" ref="fullScreenTarget">
-      <!-- 左侧摄像头列表 -->
+      <!-- 左侧摄像头列表 (手机端自动变为顶部横向滑动条) -->
       <div class="channel-sidebar" v-if="!isFullScreen">
-        <div class="sidebar-title">摄像头列表</div>
-        <div class="sidebar-hint">点击摄像头→载入选中窗口</div>
-        <div class="cam-list">
+        <div class="sidebar-header-row" @click="isMobile && (mobileSidebarCollapsed = !mobileSidebarCollapsed)">
+          <div>
+            <span class="sidebar-title">摄像头列表</span>
+            <span class="sidebar-hint"> (点击载入窗口 #{{ activeSlotIndex + 1 }})</span>
+          </div>
+          <span v-if="isMobile" class="collapse-toggle">
+            {{ mobileSidebarCollapsed ? '展开 ▼' : '收起 ▲' }}
+          </span>
+        </div>
+        <div class="cam-list" v-show="!isMobile || !mobileSidebarCollapsed">
           <div
             v-for="cam in cameras"
             :key="cam.id"
@@ -171,6 +182,11 @@ const activeSlotIndex = ref<number>(0)
 const selectedCamId = ref<number | null>(null)
 const isFullScreen = ref(false)
 const fullScreenTarget = ref<HTMLElement | null>(null)
+const isMobile = ref(window.innerWidth <= 768)
+const mobileSidebarCollapsed = ref(false)
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 // 从 localStorage 恢复布局
 const savedLayout = Number(localStorage.getItem('nvr_live_layout'))
@@ -362,6 +378,16 @@ const handleLayoutChange = (count: number) => {
 // ─── 布局样式 ─────────────────────────────────────────
 const gridStyle = computed(() => {
   const count = layoutCount.value
+  if (isMobile.value) {
+    const mobileCols = count === 1 ? 1 : 2
+    return {
+      display: 'grid',
+      gridTemplateColumns: `repeat(${mobileCols}, 1fr)`,
+      gridAutoRows: 'max-content',
+      alignContent: 'start',
+      gap: '4px',
+    }
+  }
   const cols = Math.ceil(Math.sqrt(count))
   return {
     display: 'grid',
@@ -485,6 +511,8 @@ document.addEventListener('fullscreenchange', () => {
 
 // ─── 初始化 ───────────────────────────────────────────
 onMounted(async () => {
+  window.addEventListener('resize', updateIsMobile)
+
   // 拉取摄像头列表
   try {
     const res: any = await api.getCameras()
@@ -549,6 +577,7 @@ onMounted(async () => {
 
 // ─── 销毁 ─────────────────────────────────────────────
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIsMobile)
   Object.keys(hlsInstances.value).forEach((k) => destroyHls(Number(k)))
 })
 </script>
@@ -569,18 +598,25 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   margin-bottom: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .toolbar-title {
   font-size: 14px;
   font-weight: bold;
-  margin-right: 10px;
 }
 
 .control-label {
   font-size: 12px;
   color: #94a3b8;
-  margin-right: 8px;
+  margin-right: 4px;
 }
 
 .toolbar-right {
@@ -588,6 +624,16 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-text-mobile {
+  display: none;
 }
 
 .live-body {
@@ -611,17 +657,28 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.sidebar-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .sidebar-title {
   font-size: 13px;
   font-weight: bold;
   color: #cbd5e1;
-  margin-bottom: 4px;
 }
 
 .sidebar-hint {
   font-size: 11px;
   color: #64748b;
-  margin-bottom: 8px;
+}
+
+.collapse-toggle {
+  font-size: 11px;
+  color: #3b82f6;
+  cursor: pointer;
 }
 
 .cam-list {
@@ -889,4 +946,83 @@ onBeforeUnmount(() => {
   font-size: 12px;
   padding: 20px 0;
 }
+
+/* ── 移动端适配 (<= 768px) ── */
+@media (max-width: 768px) {
+  .live-toolbar {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .toolbar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .control-label,
+  .toolbar-divider,
+  .btn-text-desktop {
+    display: none !important;
+  }
+
+  .btn-text-mobile {
+    display: inline;
+  }
+
+  .live-body {
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .channel-sidebar {
+    width: 100%;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    max-height: 92px;
+  }
+
+  .sidebar-header-row {
+    margin-bottom: 6px;
+  }
+
+  .cam-list {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 6px;
+    padding-bottom: 2px;
+  }
+
+  .cam-item {
+    flex-shrink: 0;
+    padding: 5px 10px;
+    gap: 6px;
+  }
+
+  .cam-item-main .name {
+    max-width: 110px;
+  }
+
+  .grid-container {
+    overflow-y: auto;
+    padding: 2px;
+  }
+
+  .grid-cell {
+    aspect-ratio: 16 / 9;
+    min-height: 105px;
+    border-radius: 4px;
+  }
+
+  .cell-title {
+    max-width: 90px;
+    font-size: 10px;
+  }
+}
 </style>
+

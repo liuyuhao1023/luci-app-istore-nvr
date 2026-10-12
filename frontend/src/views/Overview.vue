@@ -1,8 +1,8 @@
 <template>
   <div class="overview-container">
     <!-- 顶部状态卡片 -->
-    <el-row :gutter="16" class="stats-row">
-      <el-col :span="6">
+    <el-row :gutter="12" class="stats-row">
+      <el-col :xs="12" :sm="12" :md="6" class="stat-col">
         <el-card shadow="never" class="stat-card">
           <div class="stat-header">
             <span class="stat-title">摄像头管理</span>
@@ -16,7 +16,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6" class="stat-col">
         <el-card shadow="never" class="stat-card">
           <div class="stat-header">
             <span class="stat-title">录像任务</span>
@@ -30,7 +30,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6" class="stat-col">
         <el-card shadow="never" class="stat-card">
           <div class="stat-header">
             <span class="stat-title">软路由硬件负载</span>
@@ -38,12 +38,12 @@
           </div>
           <div class="stat-value">{{ stats.cpu_load.toFixed(2) }} <span class="stat-sub">CPU 负载</span></div>
           <div class="stat-footer">
-            <span>内存已用: {{ stats.mem_usage_pct.toFixed(1) }}% ({{ stats.mem_used_mb }}MB)</span>
+            <span>内存: {{ stats.mem_usage_pct.toFixed(1) }}% ({{ stats.mem_used_mb }}MB)</span>
           </div>
         </el-card>
       </el-col>
 
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6" class="stat-col">
         <el-card shadow="never" class="stat-card">
           <div class="stat-header">
             <span class="stat-title">存储数据盘</span>
@@ -51,31 +51,31 @@
           </div>
           <div class="stat-value">{{ stats.disk_free_gb.toFixed(1) }} <span class="stat-sub">GB 可用</span></div>
           <div class="stat-footer">
-            <span>总计 {{ stats.disk_total_gb.toFixed(1) }} GB (已用 {{ stats.disk_usage_pct.toFixed(1) }}%)</span>
+            <span>总计 {{ stats.disk_total_gb.toFixed(1) }} GB ({{ stats.disk_usage_pct.toFixed(1) }}%)</span>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 快捷预览与近期状态 -->
-    <el-row :gutter="16" class="mt-16">
-      <el-col :span="16">
+    <el-row :gutter="12" class="mt-16">
+      <el-col :xs="24" :sm="24" :md="16" class="panel-col">
         <el-card shadow="never">
           <template #header>
             <div class="card-header-flex">
               <span>快捷监控概览 (前 4 路)</span>
-              <el-button type="primary" link @click="$router.push('/live')">进入完整多画面宫格 &gt;</el-button>
+              <el-button type="primary" link @click="$router.push('/live')">完整多画面 &gt;</el-button>
             </div>
           </template>
           <div class="quick-grid">
-            <div v-for="cam in quickCameras" :key="cam.id" class="quick-item">
+            <div v-for="cam in quickCameras" :key="cam.id" class="quick-item" @click="$router.push('/live')">
               <div class="quick-header">
                 <span class="cam-title">{{ cam.name }} ({{ cam.ip }})</span>
                 <span v-if="cam.is_recording" class="rec-badge"><span class="rec-dot"></span> REC</span>
               </div>
               <div class="screen-box">
-                <el-icon :size="48" color="#475569"><VideoCamera /></el-icon>
-                <div class="screen-tip">实时子码流传输就绪</div>
+                <el-icon :size="40" color="#475569"><VideoCamera /></el-icon>
+                <div class="screen-tip">点击进入实时画面</div>
               </div>
             </div>
             <div v-if="quickCameras.length === 0" class="empty-tip">
@@ -85,7 +85,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8" class="panel-col">
         <el-card shadow="never">
           <template #header>
             <span>系统信息与存储策略</span>
@@ -179,11 +179,20 @@ onUnmounted(() => {
 
 <style scoped>
 .stats-row {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.stat-col {
+  margin-bottom: 12px;
+}
+
+.panel-col {
+  margin-bottom: 12px;
 }
 
 .stat-card {
   border-radius: 8px;
+  height: 100%;
 }
 
 .stat-header {
@@ -222,7 +231,8 @@ onUnmounted(() => {
   font-size: 12px;
   color: #94a3b8;
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .online-tag {
@@ -234,7 +244,7 @@ onUnmounted(() => {
 }
 
 .mt-16 {
-  margin-top: 16px;
+  margin-top: 4px;
 }
 
 .card-header-flex {
@@ -254,6 +264,7 @@ onUnmounted(() => {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .quick-header {
@@ -263,10 +274,17 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
+  gap: 6px;
+}
+
+.cam-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .screen-box {
-  height: 140px;
+  height: 130px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -283,7 +301,7 @@ onUnmounted(() => {
 .empty-tip {
   grid-column: span 2;
   text-align: center;
-  padding: 40px;
+  padding: 40px 16px;
   color: #64748b;
   font-size: 13px;
 }
@@ -291,7 +309,7 @@ onUnmounted(() => {
 .info-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .info-item {
@@ -300,14 +318,46 @@ onUnmounted(() => {
   font-size: 13px;
   border-bottom: 1px solid #1e293b;
   padding-bottom: 8px;
+  gap: 8px;
 }
 
 .info-k {
   color: #94a3b8;
+  flex-shrink: 0;
 }
 
 .info-v {
   color: #e2e8f0;
   font-weight: 500;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .stat-value {
+    font-size: 20px;
+    margin: 6px 0 4px 0;
+  }
+
+  .stat-sub {
+    font-size: 11px;
+  }
+
+  .stat-footer {
+    font-size: 11px;
+    gap: 6px;
+  }
+
+  .quick-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .empty-tip {
+    grid-column: span 1;
+  }
+
+  .screen-box {
+    height: 110px;
+  }
 }
 </style>
