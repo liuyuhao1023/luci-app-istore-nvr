@@ -24,18 +24,33 @@ start_service() {
     fi
 
     if [ ! -x "$PROG" ]; then
+        for alt in "$data_dir/nvr-manager" "$data_dir/istore-nvr" /usr/local/bin/nvr-manager /mnt/*/nvr-manager/nvr-manager /mnt/*/istore-nvr/istore-nvr /mnt/*/istore-nvr/nvr-manager; do
+            if [ -x "$alt" ]; then
+                PROG="$alt"
+                break
+            fi
+        done
+    fi
+
+    if [ ! -x "$PROG" ]; then
         echo "Error: $PROG not found or not executable" >&2
         return 1
     fi
 
+    if [ ! -x /usr/bin/mediamtx ]; then
+        for malt in "$data_dir/mediamtx" /usr/local/bin/mediamtx /mnt/*/istore-nvr/mediamtx /mnt/*/nvr-manager/mediamtx; do
+            if [ -x "$malt" ]; then
+                ln -sf "$malt" /usr/bin/mediamtx 2>/dev/null || true
+                break
+            fi
+        done
+    fi
+
     mkdir -p "$data_dir"
+    [ -n "$record_dir" ] && mkdir -p "$record_dir"
 
     procd_open_instance
-    if [ -n "$record_dir" ]; then
-        procd_set_param command "$PROG" -port "$port" -db "$data_dir/nvr.db" -record-dir "$record_dir"
-    else
-        procd_set_param command "$PROG" -port "$port" -db "$data_dir/nvr.db"
-    fi
+    procd_set_param command "$PROG" -port "$port" -db "$data_dir/nvr.db"
     procd_set_param respawn 3600 5 0
     procd_set_param stdout 1
     procd_set_param stderr 1

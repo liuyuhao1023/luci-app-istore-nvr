@@ -20,8 +20,9 @@ import (
 
 func main() {
 	var (
-		portFlag = flag.Int("port", 8080, "Web 管理后台服务监听端口")
-		dbFlag   = flag.String("db", "", "SQLite 数据库存储路径 (默认自动选择安全数据盘)")
+		portFlag      = flag.Int("port", 8080, "Web 管理后台服务监听端口")
+		dbFlag        = flag.String("db", "", "SQLite 数据库存储路径 (默认自动选择安全数据盘)")
+		recordDirFlag = flag.String("record-dir", "", "本地录像切片存储根路径 (可选)")
 	)
 	flag.Parse()
 
