@@ -19,11 +19,34 @@ start_service() {
     [ "$enabled" -eq 1 ] || return 0
 
     if [ -z "$data_dir" ]; then
-        for d in /mnt/sata* /mnt/nvme* /mnt/sd* /mnt/disk* /mnt/* /media/*; do
+        # 优先在真实挂载的外置磁盘中寻找最大可用空间的目录 (排除 tmpfs/rom/overlay)
+        local best_mount=""
+        local max_avail=0
+        for m in $(df -k 2>/dev/null | awk '$6 ~ /^\/(mnt|media|opt)/ && $1 ~ /^\/dev/ {print $6}'); do
+            local avail
+            avail=$(df -k "$m" 2>/dev/null | awk 'NR==2 {print $4}')
+            if [ -n "$avail" ] && [ "$avail" -gt "$max_avail" ]; then
+                max_avail="$avail"
+                best_mount="$m"
+            fi
+        done
+
+        if [ -n "$best_mount" ]; then
+            data_dir="$best_mount/nvr-manager/data"
+            [ -z "$record_dir" ] && record_dir="$best_mount/nvr-manager/recordings"
+        fi
+    fi
+
+    if [ -z "$data_dir" ]; then
+        for d in /mnt/sata* /mnt/nvme* /mnt/sd* /mnt/vio* /mnt/disk* /mnt/* /media/*; do
             if [ -d "$d" ] && [ "$d" != "/mnt/*" ] && [ "$d" != "/media/*" ] && [ "$d" != "/mnt" ]; then
-                data_dir="$d/nvr-manager/data"
-                [ -z "$record_dir" ] && record_dir="$d/nvr-manager/recordings"
-                break
+                local avail
+                avail=$(df -k "$d" 2>/dev/null | awk 'NR==2 {print $4}')
+                if [ -n "$avail" ] && [ "$avail" -gt 102400 ]; then
+                    data_dir="$d/nvr-manager/data"
+                    [ -z "$record_dir" ] && record_dir="$d/nvr-manager/recordings"
+                    break
+                fi
             fi
         done
     fi
