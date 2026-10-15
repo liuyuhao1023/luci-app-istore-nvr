@@ -121,12 +121,12 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'data_dir', _('数据与数据库存储路径'));
-		o.placeholder = '/mnt/sda1/nvr-manager/data';
-		o.description = _('安全规范：严禁使用 / 或 /overlay 根分区，请指定到本地 SATA/NVMe 数据盘或外部存储路径。未配置时服务不会启动。');
-		o.rmempty = false;
+		o.placeholder = _('例如 /mnt/sata1-4/nvr-manager/data (若留空则自动探测外部盘)');
+		o.description = _('安全规范：严禁使用 / 或 /overlay 根分区。建议手动指定到本地 SATA/NVMe 数据盘或外部存储；若留空，系统将自动挂载探测到的第一个外部数据盘。');
+		o.rmempty = true;
 
 		o = s.option(form.Value, 'record_dir', _('本地录像切片存储目录'));
-		o.placeholder = '/mnt/sda1/recordings';
+		o.placeholder = _('例如 /mnt/sata1-4/recordings (可选)');
 		o.description = _('切片视频文件落盘根路径，建议指定到大容量硬盘挂载点。');
 		o.rmempty = true;
 

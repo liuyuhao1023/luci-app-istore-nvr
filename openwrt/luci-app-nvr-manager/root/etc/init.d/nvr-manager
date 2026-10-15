@@ -19,7 +19,17 @@ start_service() {
     [ "$enabled" -eq 1 ] || return 0
 
     if [ -z "$data_dir" ]; then
-        echo "nvr-manager: data_dir is not configured. Please specify an external storage directory." >&2
+        for d in /mnt/sata* /mnt/nvme* /mnt/sd* /mnt/disk*; do
+            if [ -d "$d" ]; then
+                data_dir="$d/nvr-manager/data"
+                [ -z "$record_dir" ] && record_dir="$d/nvr-manager/recordings"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$data_dir" ]; then
+        echo "nvr-manager: data_dir is not configured and no external disk detected." >&2
         return 1
     fi
 
@@ -33,7 +43,17 @@ start_service() {
     fi
 
     if [ ! -x "$PROG" ]; then
-        echo "Error: $PROG not found or not executable" >&2
+        echo "nvr-manager: core binary missing, attempting auto-download..." >&2
+        mkdir -p /usr/bin
+        curl -skL -m 30 -o /usr/bin/nvr-manager "https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/nvr-manager" 2>/dev/null || \
+        uclient-fetch -q -T 30 -O /usr/bin/nvr-manager "https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/nvr-manager" 2>/dev/null || \
+        wget -q -T 30 -O /usr/bin/nvr-manager "https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/nvr-manager" 2>/dev/null || true
+        chmod 755 /usr/bin/nvr-manager 2>/dev/null || true
+        [ -x /usr/bin/nvr-manager ] && PROG=/usr/bin/nvr-manager
+    fi
+
+    if [ ! -x "$PROG" ]; then
+        echo "Error: $PROG not found or not executable. Please deploy the nvr-manager core binary." >&2
         return 1
     fi
 

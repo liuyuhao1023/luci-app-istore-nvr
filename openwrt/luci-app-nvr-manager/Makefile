@@ -21,6 +21,13 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
 	chmod 755 /etc/init.d/nvr-manager 2>/dev/null || true
 	/etc/init.d/rpcd reload 2>/dev/null || true
 	rm -rf /tmp/luci-indexcache /tmp/luci-modulecache/
+	if [ ! -x /usr/bin/nvr-manager ]; then
+		mkdir -p /usr/bin
+		uclient-fetch -q -T 30 -O /usr/bin/nvr-manager "https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/nvr-manager" 2>/dev/null || \
+		curl -skL -m 30 -o /usr/bin/nvr-manager "https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/nvr-manager" 2>/dev/null || \
+		wget -q -T 30 -O /usr/bin/nvr-manager "https://github.com/liuyuhao1023/luci-app-istore-nvr/raw/main/bin/nvr-manager" 2>/dev/null || true
+		chmod 755 /usr/bin/nvr-manager 2>/dev/null || true
+	fi
 fi
 exit 0
 endef
