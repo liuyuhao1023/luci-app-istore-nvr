@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -9,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"gorm.io/gorm"
@@ -312,18 +312,178 @@ func (s *StorageService) refreshStorageStats(st *model.Storage) {
 		return
 	}
 
-	// 在 Linux 上获取 statfs
-	if runtime.GOOS == "linux" {
-		var stat syscall.Statfs_t
-		if err := syscall.Statfs(st.MountPoint, &stat); err == nil {
-			st.TotalBytes = stat.Blocks * uint64(stat.Bsize)
-			st.FreeBytes = stat.Bavail * uint64(stat.Bsize)
-			st.UsedBytes = st.TotalBytes - st.FreeBytes
-		}
-	} else {
-		// 开发机模拟数据
-		st.TotalBytes = 100 * 1024 * 1024 * 1024
-		st.UsedBytes = 20 * 1024 * 1024 * 1024
-		st.FreeBytes = 80 * 1024 * 1024 * 1024
+	total, free, err := getDiskSpace(st.MountPoint)
+	if err == nil && total > 0 {
+		st.TotalBytes = total
+		st.FreeBytes = free
+		st.UsedBytes = total - free
 	}
+}
+
+// CheckAndCleanStorage 核心循环录像空间回收机制：当存储空间不足或达到阈值时，自动清理最早的历史录像
+func (s *StorageService) CheckAndCleanStorage(st *model.Storage) (int, int64, error) {
+	if st == nil || !st.AutoCleanEnabled {
+		return 0, 0, nil
+	}
+
+	s.refreshStorageStats(st)
+	if st.TotalBytes == 0 {
+		return 0, 0, nil
+	}
+
+	threshold := st.AlertThresholdPercent
+	if threshold <= 0 || threshold > 99 {
+		threshold = 90
+	}
+
+	usedPct := float64(st.UsedBytes) / float64(st.TotalBytes) * 100.0
+
+	// 安全保底可用空间：默认保留至少 2GB 可用空间（若总容量较小则保留 10%）
+	minFreeBytes := uint64(2 * 1024 * 1024 * 1024)
+	if st.TotalBytes < 10*1024*1024*1024 {
+		minFreeBytes = st.TotalBytes / 10
+	}
+
+	needClean := usedPct >= float64(threshold) || st.FreeBytes < minFreeBytes
+	if !needClean {
+		return 0, 0, nil
+	}
+
+	log.Printf("[AutoClean] 存储 [%s] (ID=%d) 触发循环空间回收: 已用 %.1f%% (阈值 %d%%), 剩余 %.2f GB (保底 %.2f GB)",
+		st.Name, st.ID, usedPct, threshold,
+		float64(st.FreeBytes)/1024/1024/1024, float64(minFreeBytes)/1024/1024/1024)
+
+	var totalDeletedCount int
+	var totalDeletedBytes int64
+
+	// 目标水位：清理到使用率低于 (threshold - 5)% 且可用空间恢复到保底的 1.5 倍
+	targetPct := float64(threshold - 5)
+	if targetPct < 50 {
+		targetPct = 50
+	}
+	targetFreeBytes := minFreeBytes + minFreeBytes/2
+
+	// 循环分批清理
+	for {
+		// 先尝试清理超出保护期 (MinRetentionDays) 的最早录像
+		var candidates []model.RecordingIndex
+		query := s.db.Where("storage_id = ? AND is_protected = ?", st.ID, false)
+
+		if st.MinRetentionDays > 0 {
+			cutoff := time.Now().AddDate(0, 0, -st.MinRetentionDays)
+			query = query.Where("start_time < ?", cutoff)
+		}
+
+		if err := query.Order("start_time asc").Limit(50).Find(&candidates).Error; err != nil {
+			log.Printf("[AutoClean] 查询待清理录像失败: %v", err)
+			break
+		}
+
+		// 如果保护期内无录像可清，但磁盘使用率已超过 95% 或剩余空间严重不足，为了保证录制不中断，强制清理未保护的最早录像
+		if len(candidates) == 0 && (usedPct >= 95.0 || st.FreeBytes < minFreeBytes/2) {
+			log.Printf("[AutoClean] 存储 [%s] 空间极度告急，放宽保护期限制以确保持续录像", st.Name)
+			_ = s.db.Where("storage_id = ? AND is_protected = ?", st.ID, false).
+				Order("start_time asc").Limit(50).Find(&candidates).Error
+		}
+
+		if len(candidates) == 0 {
+			// 没有更多可清理的录像
+			break
+		}
+
+		batchDeleted := 0
+		for _, rec := range candidates {
+			absPath := filepath.Join(st.MountPoint, rec.FilePath)
+			// 删除物理文件
+			if err := os.Remove(absPath); err == nil || os.IsNotExist(err) {
+				totalDeletedBytes += rec.SizeBytes
+				totalDeletedCount++
+				batchDeleted++
+
+				// 尝试清理可能遗留的空日期目录
+				cleanEmptyParents(filepath.Dir(absPath), filepath.Join(st.MountPoint, "recordings"))
+			} else {
+				log.Printf("[AutoClean] 删除录像文件失败 %s: %v", absPath, err)
+			}
+
+			// 从数据库删除索引记录
+			s.db.Delete(&rec)
+		}
+
+		// 刷新最新容量状态
+		s.refreshStorageStats(st)
+		usedPct = float64(st.UsedBytes) / float64(st.TotalBytes) * 100.0
+
+		// 判断是否已达标
+		if usedPct < targetPct && st.FreeBytes >= targetFreeBytes {
+			break
+		}
+
+		if batchDeleted == 0 {
+			// 如果本批次未能成功删除任何文件，避免死循环
+			break
+		}
+	}
+
+	_ = s.db.Save(st).Error
+
+	if totalDeletedCount > 0 {
+		log.Printf("[AutoClean] 存储 [%s] 循环回收完成: 共清理 %d 个最早录像切片，释放 %.2f MB 空间，当前可用 %.2f GB",
+			st.Name, totalDeletedCount, float64(totalDeletedBytes)/1024/1024, float64(st.FreeBytes)/1024/1024/1024)
+
+		// 记录系统告警事件
+		_ = s.db.Create(&model.AlertEvent{
+			Level:     "info",
+			Source:    "storage",
+			SourceID:  st.ID,
+			Message:   fmt.Sprintf("存储 [%s] 达到循环录像阈值(%d%%)，已自动清理 %d 个历史切片，释放 %.2f MB", st.Name, threshold, totalDeletedCount, float64(totalDeletedBytes)/1024/1024),
+			CreatedAt: time.Now(),
+		}).Error
+	}
+
+	return totalDeletedCount, totalDeletedBytes, nil
+}
+
+// cleanEmptyParents 递归向上清理空录像目录，直到到达根录像目录为止
+func cleanEmptyParents(dir, stopDir string) {
+	for {
+		if dir == "" || dir == "." || dir == "/" || dir == stopDir || !strings.HasPrefix(dir, stopDir) {
+			break
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil || len(entries) > 0 {
+			break
+		}
+		_ = os.Remove(dir)
+		dir = filepath.Dir(dir)
+	}
+}
+
+// StartAutoCleanLoop 启动后台循环录像空间监测守护协程
+func (s *StorageService) StartAutoCleanLoop(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		interval = 60 * time.Second
+	}
+	go func() {
+		log.Printf("[AutoClean] 存储循环录像自动回收服务已启动 (检测周期 %v)", interval)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("[AutoClean] 存储循环录像自动回收服务已停止")
+				return
+			case <-ticker.C:
+				var storages []model.Storage
+				if err := s.db.Find(&storages).Error; err == nil {
+					for i := range storages {
+						if storages[i].AutoCleanEnabled {
+							_, _, _ = s.CheckAndCleanStorage(&storages[i])
+						}
+					}
+				}
+			}
+		}
+	}()
 }

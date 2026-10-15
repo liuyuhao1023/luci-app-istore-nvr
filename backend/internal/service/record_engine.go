@@ -221,7 +221,10 @@ func (e *RecordEngine) runRecordWorker(task *RecordTask) {
 				continue
 			}
 
-			// 3. 执行单片段切片录制 (默认 5 分钟)
+			// 3. 循环存储空间安全校验与自动回收 (符合专业录像机规范，避免写满而不录制)
+			_, _, _ = e.storageService.CheckAndCleanStorage(&storage)
+
+			// 4. 执行单片段切片录制 (默认 5 分钟)
 			segmentDuration := time.Duration(cam.SegmentMinutes) * time.Minute
 			if segmentDuration <= 0 {
 				segmentDuration = 5 * time.Minute

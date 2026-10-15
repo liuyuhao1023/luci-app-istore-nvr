@@ -1,6 +1,7 @@
 # 二进制与编译产物
 backend/istore-nvr
 backend/istore-nvr.exe
+mediamtx
 backend/dist/
 frontend/dist/
 *.ipk

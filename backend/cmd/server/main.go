@@ -55,10 +55,11 @@ func main() {
 		streamEngine.UnregisterCamera(cam)
 	})
 
-	// 4. 启动后台摄像头健康心跳协程池 (每 30 秒并发轮询)
+	// 4. 启动后台摄像头健康心跳协程池 (每 30 秒) 与存储循环录像空间回收协程 (每 60 秒)
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	defer heartbeatCancel()
 	cameraService.StartHeartbeatLoop(heartbeatCtx, 30*time.Second)
+	storageService.StartAutoCleanLoop(heartbeatCtx, 60*time.Second)
 
 	// 5. 组装 HTTP 路由与服务器
 	router := api.SetupRouter(db, cameraService, storageService, recordEngine, streamEngine)
