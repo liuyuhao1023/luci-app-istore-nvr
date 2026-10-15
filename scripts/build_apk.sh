@@ -35,7 +35,7 @@ arch = all
 origin = ${PKG_NAME}
 maintainer = liuyuhao1023
 license = MIT
-depend = luci-base mount-utils cifs-utils
+depend = luci-base
 EOF
 
 # 3. 写入 .post-install 触发脚本

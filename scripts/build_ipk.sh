@@ -32,7 +32,7 @@ chmod 755 "$BUILD_DIR/data/etc/init.d/nvr-manager"
 cat << EOF > "$BUILD_DIR/control/control"
 Package: ${PKG_NAME}
 Version: ${PKG_VERSION}
-Depends: libc, luci-base, mount-utils, cifs-utils
+Depends: libc, luci-base
 Section: luci
 Architecture: ${PKG_ARCH}
 Maintainer: liuyuhao1023

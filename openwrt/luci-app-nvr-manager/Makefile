@@ -8,7 +8,7 @@ PKG_MAINTAINER:=liuyuhao1023
 
 LUCI_TITLE:=LuCI support for NVR Camera Surveillance System
 LUCI_DESCRIPTION:=High-performance Network Video Recorder (NVR) surveillance system with multi-camera live view, direct streaming recording and NAS integration.
-LUCI_DEPENDS:=+luci-base +mount-utils +cifs-utils +kmod-fs-cifs
+LUCI_DEPENDS:=+luci-base
 LUCI_PKGARCH:=all
 
 define Package/$(PKG_NAME)/conffiles
