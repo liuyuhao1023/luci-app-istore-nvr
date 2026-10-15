@@ -21,7 +21,7 @@ func NewStreamHandler(se *service.StreamEngine) *StreamHandler {
 // RequestStream 请求单路摄像头实时预览流信息 (返回 WebRTC WHEP / HLS 地址)
 func (h *StreamHandler) RequestStream(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	streamType := c.DefaultQuery("stream", "sub") // 默认请求子码流，保护性能
+	streamType := c.DefaultQuery("stream", "main") // 默认请求主码流，超清画质
 
 	// 获取客户端访问软路由时使用的 Host/IP (如 192.168.1.15)
 	host := c.Request.Host

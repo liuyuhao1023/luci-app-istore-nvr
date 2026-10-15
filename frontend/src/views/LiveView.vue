@@ -355,6 +355,7 @@ const handleLayoutChange = (count: number) => {
   for (let i = 0; i < count; i++) {
     if (i < currentSlots.length && currentSlots[i]) {
       const existing = currentSlots[i]
+      existing.streamType = 'main' // 确保切换布局时也全部保持超清主码流
       if (existing.camera) usedCamIds.add(existing.camera.id)
       newSlots.push(existing)
     } else {
@@ -532,7 +533,13 @@ onMounted(async () => {
   let savedSlots: SavedSlotConfig[] = []
   try {
     const raw = localStorage.getItem('nvr_live_slots')
-    if (raw) savedSlots = JSON.parse(raw)
+    if (raw) {
+      savedSlots = JSON.parse(raw)
+      // 强制升级旧缓存：将所有历史记录中的 sub 码流彻底重置为主码流
+      savedSlots.forEach((s) => {
+        s.streamType = 'main'
+      })
+    }
   } catch (e) {
     console.error('解析缓存槽位失败:', e)
   }
@@ -543,13 +550,12 @@ onMounted(async () => {
 
   for (let i = 0; i < count; i++) {
     let cam = null
-    let streamType: 'main' | 'sub' = 'main' // 默认超清主码流！
+    const streamType: 'main' | 'sub' = 'main' // 一律超清主码流！
 
     if (savedSlots[i] && savedSlots[i].camId) {
       const candidate = cameras.value.find((c) => c.id === savedSlots[i].camId)
       if (candidate && !usedCamIds.has(candidate.id)) {
         cam = candidate
-        streamType = savedSlots[i].streamType || 'main'
       }
     }
 
@@ -557,7 +563,6 @@ onMounted(async () => {
       const unused = cameras.value.find((c) => !usedCamIds.has(c.id))
       if (unused) {
         cam = unused
-        streamType = 'main'
       }
     }
 

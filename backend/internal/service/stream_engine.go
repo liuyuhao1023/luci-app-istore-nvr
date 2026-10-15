@@ -168,7 +168,7 @@ type MediaMTXPathConfig struct {
 // RequestStream 请求单路摄像头实时播放流信息
 func (e *StreamEngine) RequestStream(cameraID uint, streamType string, clientHost string) (map[string]interface{}, error) {
 	if streamType != "main" && streamType != "sub" {
-		streamType = "sub" // 默认子码流，保护性能
+		streamType = "main" // 默认主码流，超清画质
 	}
 
 	var cam model.Camera
