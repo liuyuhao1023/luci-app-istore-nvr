@@ -7,10 +7,15 @@
 'require poll';
 
 function checkProcess() {
-	return fs.exec('/etc/init.d/nvr-manager', ['running']).then(function(res) {
-		return { running: (res.code === 0) };
-	}).catch(function() {
-		return { running: false };
+	return Promise.all([
+		fs.exec('/etc/init.d/nvr-manager', ['running']).then(function(res) {
+			return (res.code === 0);
+		}).catch(function() { return false; }),
+		fs.stat('/usr/bin/nvr-manager').then(function() {
+			return true;
+		}).catch(function() { return false; })
+	]).then(function(res) {
+		return { running: res[0], hasBinary: res[1] };
 	});
 }
 
@@ -33,6 +38,11 @@ function renderStatusHeader(status, port) {
 			'🖥️ %s</a>',
 			fullUrl, _('打开 Web 监控中心'),
 			L.url('admin', 'services', 'nvr-manager', 'web'), _('嵌入式预览')
+		);
+	} else if (!status.hasBinary) {
+		btnHtml = String.format(
+			'<span style="color:#ef4444; font-size:13px; font-weight:bold;">⚠️ %s</span>',
+			_('未检测到核心程序 (/usr/bin/nvr-manager)！请在 iStore 上传安装 .run 全功能安装包。')
 		);
 	} else {
 		btnHtml = String.format(
