@@ -67,10 +67,16 @@ echo ">>> [3/3] 清理 LuCI 缓存并重载 rpcd 权限..."
 rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*
 /etc/init.d/rpcd reload 2>/dev/null || true
 
+echo ">>> [4/4] 自动启用并启动 NVR 监控管理服务..."
+uci set nvr-manager.config.enabled='1' 2>/dev/null || true
+uci commit nvr-manager 2>/dev/null || true
+/etc/init.d/nvr-manager enable 2>/dev/null || true
+/etc/init.d/nvr-manager restart 2>/dev/null || true
+
 echo "=========================================================="
-echo " [✓] NVR 视频监控管理系统安装成功！"
+echo " [✓] NVR 视频监控管理系统安装成功并已自动启动！"
 echo " [✓] LuCI 后台：【服务】-> 【NVR视频监控】"
-echo " [!] 注意：请前往 LuCI 配置外部数据存储盘目录后启用服务。"
+echo " [✓] Web 访问控制台：http://<路由器IP>:8080/"
 echo "=========================================================="
 
 exit 0

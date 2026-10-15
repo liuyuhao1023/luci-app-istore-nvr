@@ -19,8 +19,8 @@ start_service() {
     [ "$enabled" -eq 1 ] || return 0
 
     if [ -z "$data_dir" ]; then
-        for d in /mnt/sata* /mnt/nvme* /mnt/sd* /mnt/disk*; do
-            if [ -d "$d" ]; then
+        for d in /mnt/sata* /mnt/nvme* /mnt/sd* /mnt/disk* /mnt/* /media/*; do
+            if [ -d "$d" ] && [ "$d" != "/mnt/*" ] && [ "$d" != "/media/*" ] && [ "$d" != "/mnt" ]; then
                 data_dir="$d/nvr-manager/data"
                 [ -z "$record_dir" ] && record_dir="$d/nvr-manager/recordings"
                 break
@@ -29,8 +29,8 @@ start_service() {
     fi
 
     if [ -z "$data_dir" ]; then
-        echo "nvr-manager: data_dir is not configured and no external disk detected." >&2
-        return 1
+        data_dir="/root/nvr-manager/data"
+        [ -z "$record_dir" ] && record_dir="/root/nvr-manager/recordings"
     fi
 
     if [ ! -x "$PROG" ]; then
