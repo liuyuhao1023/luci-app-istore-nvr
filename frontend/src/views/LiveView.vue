@@ -117,30 +117,26 @@
           <!-- 播放器区域 -->
           <div class="cell-player">
             <div v-if="slot.camera" class="video-wrapper">
-              <!-- WebRTC 极低延迟播放器 (原生支持 H.264 与 H.265 硬解) -->
-              <iframe
-                v-if="slot.playUrl"
-                :key="`${idx}-${slot.camera?.id}-${slot.streamType}`"
-                :src="slot.playUrl"
+              <!-- HLS 视频播放器 (始终渲染于 DOM 中，不使用 v-show 隐藏，避免 Chrome 挂起后台解码) -->
+              <video
+                :ref="el => setVideoRef(el as HTMLVideoElement | null, idx)"
                 class="video-player"
-                allow="autoplay; fullscreen"
-                frameborder="0"
-              ></iframe>
-              <!-- loading 状态 -->
-              <div v-else-if="slotStatus[idx] === 'loading'" class="video-loading">
+                autoplay
+                muted
+                playsinline
+              ></video>
+
+              <!-- 正在连接视频流状态层 (浮层遮罩) -->
+              <div v-if="slotStatus[idx] === 'loading' || !slotStatus[idx] || slotStatus[idx] === 'init'" class="video-loading">
                 <el-icon class="is-loading" :size="28" color="#3b82f6"><Loading /></el-icon>
                 <span>正在连接视频流...</span>
               </div>
-              <!-- 错误状态 -->
-              <div v-else-if="slotStatus[idx] === 'error'" class="video-error">
+
+              <!-- 错误状态层 -->
+              <div v-if="slotStatus[idx] === 'error'" class="video-error">
                 <el-icon :size="32" color="#ef4444"><Warning /></el-icon>
                 <span>视频流连接失败</span>
                 <el-button size="small" type="primary" @click.stop="retrySlot(idx)">重试</el-button>
-              </div>
-              <!-- 初始化中 -->
-              <div v-else class="video-loading">
-                <el-icon class="is-loading" :size="28" color="#3b82f6"><Loading /></el-icon>
-                <span>正在建立会话...</span>
               </div>
             </div>
             <div v-else class="cell-placeholder" @click="assignSelectedToSlot(idx)">
@@ -155,15 +151,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import Hls from 'hls.js'
 import api from '../api'
 
 // ─── 类型定义 ───────────────────────────────────────
 interface Slot {
   camera: any | null
   streamType: 'main' | 'sub'
-  playUrl?: string
+  hlsUrl?: string
 }
 
 interface SavedSlotConfig {
@@ -193,6 +190,16 @@ const layoutCount = ref<number>(
   savedLayout && [1, 4, 9, 16, 25, 36].includes(savedLayout) ? savedLayout : 4
 )
 
+// hls 实例映射：slot idx → Hls instance
+const hlsInstances = ref<Record<number, Hls>>({})
+// video 元素引用：slot idx → HTMLVideoElement
+const videoRefs: Record<number, HTMLVideoElement | null> = {}
+
+// ─── video ref 收集 ──────────────────────────────────
+const setVideoRef = (el: HTMLVideoElement | null, idx: number) => {
+  videoRefs[idx] = el
+}
+
 // ─── 持久化 ──────────────────────────────────────────
 const saveSlotState = () => {
   try {
@@ -206,19 +213,115 @@ const saveSlotState = () => {
   }
 }
 
-// ─── 加载视频流（WebRTC 超低延迟版本）────────────────
+// ─── 销毁单个 hls 实例 ────────────────────────────────
+const destroyHls = (idx: number) => {
+  const hls = hlsInstances.value[idx]
+  if (hls) {
+    try {
+      hls.destroy()
+    } catch (_) {}
+    delete hlsInstances.value[idx]
+  }
+  const video = videoRefs[idx]
+  if (video) {
+    try {
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
+    } catch (_) {}
+  }
+}
+
+// ─── 加载视频流 (HLS 架构) ───────────────────────────
 const loadSlotStream = async (slot: Slot, idx: number) => {
   if (!slot.camera) return
 
-  slot.playUrl = ''
+  destroyHls(idx)
   slotStatus.value[idx] = 'loading'
 
   try {
     const res: any = await api.requestStream(slot.camera.id, slot.streamType)
-    if (res.code === 0 && res.data && res.data.iframe_url) {
-      slot.playUrl = res.data.iframe_url
-      slotStatus.value[idx] = 'playing'
+    if (res.code !== 0 || !res.data) {
+      slotStatus.value[idx] = 'error'
+      return
+    }
+
+    const hlsUrl: string = res.data.hls_url
+    slot.hlsUrl = hlsUrl
+
+    await nextTick()
+    const video = videoRefs[idx]
+    if (!video) {
+      slotStatus.value[idx] = 'error'
+      return
+    }
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        maxBufferLength: 15,
+        maxMaxBufferLength: 30,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        manifestLoadingTimeOut: 15000,
+        manifestLoadingMaxRetry: 6,
+        levelLoadingTimeOut: 15000,
+        levelLoadingMaxRetry: 6,
+      })
+
+      hlsInstances.value[idx] = hls
+      hls.loadSource(hlsUrl)
+      hls.attachMedia(video)
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {})
+      })
+
+      const markPlaying = () => {
+        slotStatus.value[idx] = 'playing'
+      }
+
+      video.onplaying = markPlaying
+      video.onloadeddata = markPlaying
+      video.ontimeupdate = () => {
+        if (video.currentTime > 0) {
+          slotStatus.value[idx] = 'playing'
+        }
+      }
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad()
+              break
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError()
+              break
+            default:
+              slotStatus.value[idx] = 'error'
+              destroyHls(idx)
+              break
+          }
+        }
+      })
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsUrl
+      const markPlaying = () => {
+        slotStatus.value[idx] = 'playing'
+      }
+      video.onloadedmetadata = () => video.play().catch(() => {})
+      video.onplaying = markPlaying
+      video.ontimeupdate = () => {
+        if (video.currentTime > 0) slotStatus.value[idx] = 'playing'
+      }
+      video.onerror = () => {
+        slotStatus.value[idx] = 'error'
+      }
     } else {
+      ElMessage.error('当前浏览器不支持 HLS 播放，请使用现代浏览器')
       slotStatus.value[idx] = 'error'
     }
   } catch (e: any) {
@@ -244,6 +347,11 @@ const handleLayoutChange = (count: number) => {
   const newSlots: Slot[] = []
   const usedCamIds = new Set<number>()
 
+  // 销毁超出范围的 hls 实例
+  for (let i = count; i < currentSlots.length; i++) {
+    destroyHls(i)
+  }
+
   for (let i = 0; i < count; i++) {
     if (i < currentSlots.length && currentSlots[i]) {
       const existing = currentSlots[i]
@@ -254,16 +362,15 @@ const handleLayoutChange = (count: number) => {
       if (unusedCam) usedCamIds.add(unusedCam.id)
       const s: Slot = {
         camera: unusedCam,
-        streamType: count === 1 ? 'main' : 'sub',
+        streamType: 'main', // 默认超清主码流！
       }
       newSlots.push(s)
       if (unusedCam) {
-        loadSlotStream(s, i)
+        nextTick(() => loadSlotStream(s, i))
       }
     }
   }
 
-  // 保证 activeSlotIndex 在合法范围内
   if (activeSlotIndex.value >= count) {
     activeSlotIndex.value = 0
   }
@@ -294,7 +401,7 @@ const gridStyle = computed(() => {
   }
 })
 
-// ─── 选择摄像头（左侧列表点击）────────────────────────
+// ─── 选择摄像头（左侧列表点击，支持单画面秒切）────────
 const selectCamera = (cam: any) => {
   selectedCamId.value = cam.id
   if (activeSlotIndex.value < 0 || activeSlotIndex.value >= slots.value.length) {
@@ -304,11 +411,11 @@ const selectCamera = (cam: any) => {
   const s = slots.value[idx]
   if (s) {
     s.camera = cam
-    s.streamType = layoutCount.value === 1 ? 'main' : (s.streamType || 'sub')
+    s.streamType = 'main' // 始终默认主码流，超清画质！
     loadSlotStream(s, idx)
     saveSlotState()
 
-    // 仅在多宫格模式下自动跳到下一个空闲窗口；单画面模式下固定在当前窗口，便于用户连续点击切换查看
+    // 多宫格模式下才自动跳到下一个空闲窗口；单画面模式下固定为当前窗口，便于用户连续点击任意摄像头秒切！
     if (slots.value.length > 1) {
       const nextEmpty = slots.value.findIndex((slot, i) => i > idx && !slot.camera)
       if (nextEmpty !== -1) {
@@ -327,7 +434,7 @@ const assignSelectedToSlot = (idx: number) => {
     const cam = cameras.value.find((c) => c.id === selectedCamId.value)
     if (cam) {
       slots.value[idx].camera = cam
-      slots.value[idx].streamType = layoutCount.value === 1 ? 'main' : 'sub'
+      slots.value[idx].streamType = 'main' // 默认超清主码流
       loadSlotStream(slots.value[idx], idx)
       saveSlotState()
       return
@@ -338,14 +445,17 @@ const assignSelectedToSlot = (idx: number) => {
 
 // ─── 移除单个画面 ─────────────────────────────────────
 const removeSlotCamera = (idx: number) => {
+  destroyHls(idx)
   slots.value[idx].camera = null
-  slots.value[idx].playUrl = undefined
+  slots.value[idx].hlsUrl = undefined
   slotStatus.value[idx] = 'init'
   saveSlotState()
 }
 
 // ─── 一键顺序排列 ─────────────────────────────────────
 const autoArrangeSlots = () => {
+  Object.keys(hlsInstances.value).forEach((k) => destroyHls(Number(k)))
+
   const count = layoutCount.value
   const newSlots: Slot[] = []
   const newStatus: Record<number, SlotStatusType> = {}
@@ -354,7 +464,7 @@ const autoArrangeSlots = () => {
     const cam = cameras.value[i] || null
     const s: Slot = {
       camera: cam,
-      streamType: 'main',
+      streamType: 'main', // 顺序排列一律默认超清主码流！
     }
     newSlots.push(s)
     newStatus[i] = cam ? 'init' : 'init'
@@ -364,7 +474,6 @@ const autoArrangeSlots = () => {
   slotStatus.value = newStatus
   saveSlotState()
 
-  // 逐个加载，避免同时发起太多请求
   newSlots.forEach((s, i) => {
     if (s.camera) {
       setTimeout(() => loadSlotStream(s, i), i * 200)
@@ -411,7 +520,6 @@ document.addEventListener('fullscreenchange', () => {
 onMounted(async () => {
   window.addEventListener('resize', updateIsMobile)
 
-  // 拉取摄像头列表
   try {
     const res: any = await api.getCameras()
     if (res.code === 0) {
@@ -421,7 +529,6 @@ onMounted(async () => {
     console.error('获取摄像头列表失败:', e)
   }
 
-  // 从 localStorage 恢复槽位配置
   let savedSlots: SavedSlotConfig[] = []
   try {
     const raw = localStorage.getItem('nvr_live_slots')
@@ -436,9 +543,8 @@ onMounted(async () => {
 
   for (let i = 0; i < count; i++) {
     let cam = null
-    let streamType: 'main' | 'sub' = 'main'
+    let streamType: 'main' | 'sub' = 'main' // 默认超清主码流！
 
-    // 优先恢复历史配置，严禁重复
     if (savedSlots[i] && savedSlots[i].camId) {
       const candidate = cameras.value.find((c) => c.id === savedSlots[i].camId)
       if (candidate && !usedCamIds.has(candidate.id)) {
@@ -447,7 +553,6 @@ onMounted(async () => {
       }
     }
 
-    // 没有历史配置则从空闲摄像头中补充
     if (!cam) {
       const unused = cameras.value.find((c) => !usedCamIds.has(c.id))
       if (unused) {
@@ -465,10 +570,9 @@ onMounted(async () => {
   slots.value = newSlots
   saveSlotState()
 
-  // 错开加载，避免并发请求过多
   newSlots.forEach((s, i) => {
     if (s.camera) {
-      setTimeout(() => loadSlotStream(s, i), i * 300)
+      setTimeout(() => loadSlotStream(s, i), i * 250)
     }
   })
 })
@@ -476,6 +580,7 @@ onMounted(async () => {
 // ─── 销毁 ─────────────────────────────────────────────
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateIsMobile)
+  Object.keys(hlsInstances.value).forEach((k) => destroyHls(Number(k)))
 })
 </script>
 
@@ -793,6 +898,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   gap: 8px;
   background-color: #000;
+  z-index: 2;
 }
 
 .cell-placeholder {
