@@ -39,9 +39,24 @@
     </div>
 
     <!-- 主展示区 -->
-    <div class="live-body" ref="fullScreenTarget">
+    <div
+      class="live-body"
+      :class="{ 'is-pseudo-fullscreen': isPseudoFullScreen }"
+      ref="fullScreenTarget"
+    >
+      <!-- 手机端或伪全屏下浮动退出按钮 -->
+      <button
+        v-if="isFullScreen || isPseudoFullScreen"
+        class="exit-fullscreen-btn"
+        @click="exitAllFullScreen"
+        title="退出全屏"
+      >
+        <el-icon><Close /></el-icon>
+        <span>退出全屏</span>
+      </button>
+
       <!-- 左侧摄像头列表 (手机端自动变为顶部横向滑动条) -->
-      <div class="channel-sidebar" v-if="!isFullScreen">
+      <div class="channel-sidebar" v-if="!isFullScreen && !isPseudoFullScreen">
         <div class="sidebar-header-row" @click="isMobile && (mobileSidebarCollapsed = !mobileSidebarCollapsed)">
           <div>
             <span class="sidebar-title">摄像头列表</span>
@@ -83,6 +98,7 @@
           :key="`slot-${idx}`"
           class="grid-cell"
           :class="{ selected: activeSlotIndex === idx }"
+          :ref="el => setSlotRef(el as HTMLElement | null, idx)"
           @click="activeSlotIndex = idx"
         >
           <!-- 单元格顶栏 -->
@@ -104,26 +120,44 @@
               </el-tag>
               <!-- 状态指示 -->
               <span class="status-dot" :class="slotStatus[idx]"></span>
+              <!-- 单路全屏按钮 (支持 iOS Safari 原生 QuickTime 全屏) -->
+              <el-button
+                circle
+                size="small"
+                type="primary"
+                plain
+                icon="FullScreen"
+                title="全屏播放"
+                @click.stop="toggleSlotFullScreen(idx)"
+              />
               <el-button
                 circle
                 size="small"
                 type="danger"
                 icon="Close"
+                title="关闭画面"
                 @click.stop="removeSlotCamera(idx)"
               />
             </div>
           </div>
 
-          <!-- 播放器区域 -->
-          <div class="cell-player">
+          <!-- 播放器区域 (支持双击全屏) -->
+          <div
+            class="cell-player"
+            @dblclick="slot.camera && toggleSlotFullScreen(idx)"
+          >
             <div v-if="slot.camera" class="video-wrapper">
-              <!-- HLS 视频播放器 (始终渲染于 DOM 中，不使用 v-show 隐藏，避免 Chrome 挂起后台解码) -->
+              <!-- HLS 视频播放器 (添加 webkit-playsinline 与 x5 属性以完美兼容 iOS Safari 与移动端) -->
               <video
                 :ref="el => setVideoRef(el as HTMLVideoElement | null, idx)"
                 class="video-player"
                 autoplay
                 muted
                 playsinline
+                webkit-playsinline="true"
+                x5-playsinline="true"
+                x5-video-player-type="h5"
+                x5-video-player-fullscreen="true"
               ></video>
 
               <!-- 正在连接视频流状态层 (浮层遮罩) -->
@@ -177,7 +211,12 @@ const slotStatus = ref<Record<number, SlotStatusType>>({})
 const activeSlotIndex = ref<number>(0)
 const selectedCamId = ref<number | null>(null)
 const isFullScreen = ref(false)
+const isPseudoFullScreen = ref(false)
 const fullScreenTarget = ref<HTMLElement | null>(null)
+const slotRefs = ref<Record<number, HTMLElement | null>>({})
+const setSlotRef = (el: HTMLElement | null, idx: number) => {
+  slotRefs.value[idx] = el
+}
 const isMobile = ref(window.innerWidth <= 768)
 const mobileSidebarCollapsed = ref(false)
 const updateIsMobile = () => {
@@ -198,6 +237,15 @@ const videoRefs: Record<number, HTMLVideoElement | null> = {}
 // ─── video ref 收集 ──────────────────────────────────
 const setVideoRef = (el: HTMLVideoElement | null, idx: number) => {
   videoRefs[idx] = el
+  if (el) {
+    // 监听 iOS WebKit 原生全屏进入与退出事件，保持 UI 状态同步
+    el.addEventListener('webkitbeginfullscreen', () => {
+      isFullScreen.value = true
+    })
+    el.addEventListener('webkitendfullscreen', () => {
+      isFullScreen.value = false
+    })
+  }
 }
 
 // ─── 持久化 ──────────────────────────────────────────
@@ -503,19 +551,142 @@ const refreshAllStreams = () => {
   ElMessage.success('正在刷新所有视频流...')
 }
 
-// ─── 全屏 ─────────────────────────────────────────────
-const toggleFullScreen = () => {
-  if (!document.fullscreenElement) {
-    fullScreenTarget.value?.requestFullscreen()
-    isFullScreen.value = true
-  } else {
-    document.exitFullscreen()
+// ─── 全屏控制器 (兼容 iOS Safari / iPhone / iPad / Android / PC) ───
+const toggleFullScreen = async () => {
+  const el = fullScreenTarget.value
+  if (!el) return
+
+  // 若当前已在全屏状态，则退出
+  if (isFullScreen.value || isPseudoFullScreen.value) {
+    exitAllFullScreen()
+    return
+  }
+
+  // 1. 如果当前是单画面且在 iOS iPhone Safari 上，优先唤起原生全屏
+  if (layoutCount.value === 1 && slots.value[0]?.camera && videoRefs[0]) {
+    const v = videoRefs[0]
+    if (typeof (v as any).webkitEnterFullscreen === 'function') {
+      try {
+        (v as any).webkitEnterFullscreen()
+        isFullScreen.value = true
+        return
+      } catch (e) {
+        console.warn('iOS webkitEnterFullscreen failed, fallback to pseudo fullscreen:', e)
+      }
+    }
+  }
+
+  // 2. 尝试标准/厂商前缀的原生 DOM 全屏 (PC / iPadOS / Android)
+  const reqFn = el.requestFullscreen ||
+    (el as any).webkitRequestFullscreen ||
+    (el as any).mozRequestFullScreen ||
+    (el as any).msRequestFullscreen
+
+  if (typeof reqFn === 'function') {
+    try {
+      await reqFn.call(el)
+      isFullScreen.value = true
+      isPseudoFullScreen.value = false
+      return
+    } catch (e) {
+      console.warn('Native requestFullscreen failed or blocked, fallback to pseudo fullscreen:', e)
+    }
+  }
+
+  // 3. 针对 iOS iPhone Safari 等不支持 DOM 全屏的移动端浏览器，启用满屏视口全屏模式
+  isFullScreen.value = true
+  isPseudoFullScreen.value = true
+}
+
+// 单路画面全屏 (支持 iOS 原生 QuickTime 全屏与双击全屏)
+const toggleSlotFullScreen = (idx: number) => {
+  const video = videoRefs[idx]
+  const slotEl = slotRefs.value[idx]
+
+  // 1. 优先调用 iOS Safari 原生全屏 (iPhone WebKit 专属机制，具备系统级横屏旋转与硬件加速)
+  if (video && typeof (video as any).webkitEnterFullscreen === 'function') {
+    try {
+      (video as any).webkitEnterFullscreen()
+      return
+    } catch (e) {
+      console.warn('webkitEnterFullscreen failed, fallback to element fullscreen:', e)
+    }
+  }
+
+  // 2. 标准 HTML5 Element 全屏 (iPad / Android / PC)
+  const target = slotEl || video
+  if (target) {
+    const isFull = !!(document.fullscreenElement || (document as any).webkitFullscreenElement)
+    if (isFull) {
+      exitAllFullScreen()
+    } else {
+      const reqFn = target.requestFullscreen ||
+        (target as any).webkitRequestFullscreen ||
+        (target as any).mozRequestFullScreen ||
+        (target as any).msRequestFullscreen
+
+      if (typeof reqFn === 'function') {
+        reqFn.call(target).catch(() => {
+          // 降级：切换为单画面并启用视口全屏
+          activeSlotIndex.value = idx
+          handleLayoutChange(1)
+          isFullScreen.value = true
+          isPseudoFullScreen.value = true
+        })
+      } else {
+        // iOS 降级：切换为单画面并开启视口全屏
+        activeSlotIndex.value = idx
+        handleLayoutChange(1)
+        isFullScreen.value = true
+        isPseudoFullScreen.value = true
+      }
+    }
+  }
+}
+
+// 退出所有形式的全屏
+const exitAllFullScreen = () => {
+  isFullScreen.value = false
+  isPseudoFullScreen.value = false
+
+  const exitFn = document.exitFullscreen ||
+    (document as any).webkitExitFullscreen ||
+    (document as any).mozCancelFullScreen ||
+    (document as any).msExitFullscreen
+
+  if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+    if (typeof exitFn === 'function') {
+      try {
+        exitFn.call(document)
+      } catch (_) {}
+    }
+  }
+
+  // 确保退出所有 iOS 原生视频全屏
+  Object.values(videoRefs).forEach((v) => {
+    if (v && typeof (v as any).webkitExitFullscreen === 'function') {
+      try {
+        (v as any).webkitExitFullscreen()
+      } catch (_) {}
+    }
+  })
+}
+
+// 监听标准与前缀全屏变化事件
+const handleNativeFullScreenChange = () => {
+  const isFull = !!(
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).mozFullScreenElement ||
+    (document as any).msFullscreenElement
+  )
+  if (!isFull && !isPseudoFullScreen.value) {
     isFullScreen.value = false
   }
 }
-document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) isFullScreen.value = false
-})
+
+document.addEventListener('fullscreenchange', handleNativeFullScreenChange)
+document.addEventListener('webkitfullscreenchange', handleNativeFullScreenChange)
 
 // ─── 初始化 ───────────────────────────────────────────
 onMounted(async () => {
@@ -585,6 +756,8 @@ onMounted(async () => {
 // ─── 销毁 ─────────────────────────────────────────────
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateIsMobile)
+  document.removeEventListener('fullscreenchange', handleNativeFullScreenChange)
+  document.removeEventListener('webkitfullscreenchange', handleNativeFullScreenChange)
   Object.keys(hlsInstances.value).forEach((k) => destroyHls(Number(k)))
 })
 </script>
@@ -1031,6 +1204,69 @@ onBeforeUnmount(() => {
     max-width: 90px;
     font-size: 10px;
   }
+}
+
+/* ── 视口全屏 (专为 iOS iPhone 与不支持 DOM 全屏的移动端浏览器设计) ── */
+.live-body.is-pseudo-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important; /* 支持 iOS 15.4+ 动态视口高度，避开 Safari 地址栏 */
+  z-index: 99999 !important;
+  background-color: #000 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.live-body.is-pseudo-fullscreen .grid-container {
+  border: none !important;
+  padding: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  background-color: #000 !important;
+}
+
+.live-body.is-pseudo-fullscreen .grid-cell {
+  border-radius: 0 !important;
+}
+
+/* 浮动退出全屏按钮 (支持 iPhone 灵动岛与刘海屏安全区避让) */
+.exit-fullscreen-btn {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 10px) + 12px);
+  right: calc(env(safe-area-inset-right, 10px) + 12px);
+  z-index: 100000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.exit-fullscreen-btn:hover,
+.exit-fullscreen-btn:active {
+  background: rgba(37, 99, 235, 0.95);
+  border-color: #3b82f6;
+  transform: scale(1.02);
 }
 </style>
 
